@@ -1,0 +1,7 @@
+config/*.inc.php
+logs/
+vendor/
+lib/plugins
+lib/Roundcube
+composer.phar
+composer.lock
