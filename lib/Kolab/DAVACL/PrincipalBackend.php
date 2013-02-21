@@ -1,5 +1,26 @@
 <?php
 
+/**
+ * SabreDAV Principals Backend implementation for Kolab.
+ *
+ * @author Thomas Bruederli <bruederli@kolabsys.com>
+ *
+ * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 namespace Kolab\DAVACL;
 
 use Sabre\DAV\Exception;
@@ -38,6 +59,8 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      */
     public function getCurrentUser()
     {
+        console(__METHOD__, HTTPBasic::$current_user);
+
         if (HTTPBasic::$current_user) {
             return array(
                 'uri' => '/' . HTTPBasic::$current_user,
@@ -67,6 +90,8 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      */
     public function getPrincipalsByPrefix($prefixPath)
     {
+        console(__METHOD__, $prefixPath);
+
         $principals = array();
 
         if ($prefixPath == 'principals') {

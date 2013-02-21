@@ -1,17 +1,39 @@
 <?php
 
+/**
+ * SabreDAV Calendaring backend for Kolab.
+ *
+ * @author Thomas Bruederli <bruederli@kolabsys.com>
+ *
+ * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 namespace Kolab\CalDAV;
 
 use \PEAR;
 use \rcube_charset;
 use \kolab_storage;
+use \libcalendaring;
 use Sabre\CalDAV;
 use Sabre\VObject;
 
 /**
  * Kolab Calendaring backend.
  *
- * Checkout the BackendInterface for all the methods that must be implemented.
+ * Checkout the Sabre\CalDAV\Backend\BackendInterface for all the methods that must be implemented.
  *
  */
 class CalendarBackend extends CalDAV\Backend\AbstractBackend
@@ -20,7 +42,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     private $folders;
 
     /**
-     * Read available calendars from server
+     * Read available calendar folders from server
      */
     private function _read_calendars()
     {
@@ -43,13 +65,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         foreach ($names as $utf7name => $name) {
             $id = urlencode($utf7name);
-            $this->folders[$id] = $folders[$utf7name];
+            $folder = $this->folders[$id] = $folders[$utf7name];
+            $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->calendars[$id] = array(
                 'id' => $id,
                 'uri' => $id,
                 '{DAV:}displayname' => $name,
                 '{http://apple.com/ns/ical/}calendar-color' => $this->get_color($folders[$utf7name]),
-                '{http://calendarserver.org/ns/}getctag' => '0',  // TODO: Ctag is an Etag equvalent for an entire calendar
+                '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
             );
@@ -218,12 +241,25 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function getCalendarObjects($calendarId)
     {
-        console(__METHOD__, $principalUri);
-        // TODO: implement this
+        console(__METHOD__, $calendarId);
 
+        $query = array();
+        $events = array();
         $storage = $this->get_storage_folder($calendarId);
+        if ($storage) {
+            foreach ((array)$storage->select($query) as $event) {
+                $events[] = array(
+                    'id' => $event['uid'],
+                    'uri' => $event['uid'] . '.ics',
+                    'lastmodified' => $event['changed']->format('U'),
+                    'calendarid' => $calendarId,
+                    'etag' => $this->_get_etag($event),
+                    'size' => $event['_size'],
+                );
+            }
+        }
 
-        return array();
+        return $events;
     }
 
 
@@ -241,8 +277,24 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function getCalendarObject($calendarId, $objectUri)
     {
-        console(__METHOD__, $principalUri);
-        // TODO: implement this
+        console(__METHOD__, $calendarId, $objectUri);  # , debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS));
+
+        $uid = basename($objectUri, '.ics');
+        $storage = $this->get_storage_folder($calendarId);
+
+        if ($storage && ($event = $storage->get_object($uid))) {
+            console('FOUND: ' . $event['uid']);
+            return array(
+                'id' => $event['uid'],
+                'uri' => $event['uid'] . '.ics',
+                'lastmodified' => $event['changed']->format('U'),
+                'calendarid' => $calendarId,
+                'calendardata' => $this->_to_ical($event),
+                'etag' => $this->_get_etag($event),
+            );
+        }
+
+        return array();
     }
 
 
@@ -271,7 +323,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $object = $this->_parse_calendar_object($calendarData);
 
         if ($object['uid'] == $uid) {
-            if (!$storage->save($object, 'event')) {
+            $success = $storage->save($object, 'event');
+            if (!$success) {
                 rcube::raise_error(array(
                     'code' => 600, 'type' => 'php',
                     'file' => __FILE__, 'line' => __LINE__,
@@ -287,7 +340,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 true, false);
         }
 
-        // TODO: generate Etag
+        // return new Etag
+        return $success ? $this->_get_etag($object) : null;
     }
 
     /**
@@ -314,7 +368,38 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->_parse_calendar_object($calendarData);
 
-        // TODO: generate Etag
+        // sanity check
+        if ($object['uid'] != $uid) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error creating calendar object: UID doesn't match object URI"),
+                true, false);
+
+            return null;
+        }
+
+        // copy meta data (starting with _) from old object
+        $old = $storage->get_object($uid);
+        foreach ((array)$old as $key => $val) {
+          if (!isset($object[$key]) && $key[0] == '_')
+            $object[$key] = $val;
+        }
+
+        // save object
+        $saved = $storage->save($object, 'event', $uid);
+        if (!$saved) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error saving event object to Kolab server"),
+                true, false);
+
+            return null;
+        }
+
+        // return new Etag
+        return $this->_get_etag($object);
     }
 
     /**
@@ -324,9 +409,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * @param string $objectUri
      * @return void
      */
-    public function deleteCalendarObject($calendarId,$objectUri)
+    public function deleteCalendarObject($calendarId, $objectUri)
     {
-        // TODO: implement this
+        console(__METHOD__, $calendarId, $objectUri);
+
+        $uid = basename($objectUri, '.ics');
+        if ($storage = $this->get_storage_folder($calendarId)) {
+            $storage->delete($uid);
+        }
     }
 
     /**
@@ -385,24 +475,44 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     }
 
 
+    /**********  Data conversion utilities  ***********/
+
+    /**
+     * Parse the given iCal string into a hash array kolab_format_event can handle
+     *
+     * @param string iCal data block
+     * @return array Hash array with event properties or null on failure
+     */
     private function _parse_calendar_object($calendarData)
     {
-        $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+        try {
+            $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
 
-        if ($vobject->name == 'VCALENDAR') {
-            foreach ($vobject->getBaseComponents('VEVENT') as $vevent) {
-                $object = $this->_to_array($vevent);
-                if (!empty($object['uid'])) {
-                    return $object;
+            if ($vobject->name == 'VCALENDAR') {
+                foreach ($vobject->getBaseComponents('VEVENT') as $vevent) {
+                    $object = $this->_to_array($vevent);
+                    if (!empty($object['uid'])) {
+                        return $object;
+                    }
                 }
             }
+        }
+        catch (VObject\ParseException $e) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "iCal data Parse error: " . $e->getMessage()),
+                true, false);
         }
 
         return null;
     }
 
     /**
-     * Convert the given Sabre\VObject\Component\Vevent object to the internal event format
+     * Convert the given Sabre\VObject\Component\Vevent object to a libkolab compatible event format
+     *
+     * @param object Vevent object to convert
+     * @return array Hash array with event properties
      */
     private function _to_array($ve)
     {
@@ -455,13 +565,25 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 break;
 
             case 'RRULE':
+                // parse recurrence rule attributes
+                foreach (explode(';', $prop->value) as $par) {
+                    list($k, $v) = explode('=', $par);
+                    $params[$k] = $v;
+                }
+                if ($params['UNTIL'])
+                    $params['UNTIL'] = date_create($params['UNTIL']);
+                if (!$params['INTERVAL'])
+                    $params['INTERVAL'] = 1;
+
+                $event['recurrence'] = $params;
                 break;
 
             case 'EXDATE':
+                $event['recurrence']['EXDATE'][] = $this->_convert_datetime($prop);
                 break;
 
             case 'RECURRENCE-ID':
-                $event['recurrence_id'] = $this->_date2time($attr['value']);
+                // $event['recurrence_id'] = $this->_convert_datetime($prop);
                 break;
             
             case 'SEQUENCE':
@@ -475,48 +597,36 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
             case 'CLASS':
             case 'X-CALENDARSERVER-ACCESS':
-                //$sensitivity_map = array('PUBLIC' => 0, 'PRIVATE' => 1, 'CONFIDENTIAL' => 2);
-                //$event['sensitivity'] = $sensitivity_map[$attr['value']];
+                $sensitivity_map = array('PUBLIC' => 0, 'PRIVATE' => 1, 'CONFIDENTIAL' => 2);
+                $event['sensitivity'] = $sensitivity_map[$prop->value];
                 break;
 
             case 'X-MICROSOFT-CDO-BUSYSTATUS':
-                if ($attr['value'] == 'OOF')
+                if ($prop->value == 'OOF')
                     $event['free_busy'] == 'outofoffice';
-                else if (in_array($attr['value'], array('FREE', 'BUSY', 'TENTATIVE')))
-                    $event['free_busy'] = strtolower($attr['value']);
+                else if (in_array($prop->value, array('FREE', 'BUSY', 'TENTATIVE')))
+                    $event['free_busy'] = strtolower($prop->value);
                 break;
             }
         }
-
-        return $event;
 
         // find alarms
         if ($valarms = $ve->select('VALARM')) {
             $action = 'DISPLAY';
             $trigger = null;
 
-            foreach ($valarms[0]->children as $prop) {
+            $valarm = reset($valarms);
+            foreach ($valarm->children as $prop) {
                 switch ($prop->name) {
                 case 'TRIGGER':
-                    if ($attr['params']['VALUE'] == 'DATE-TIME') {
-                        $trigger = '@' . $attr['value'];
+                    foreach ($prop->parameters as $param) {
+                        if ($param->name == 'VALUE' && $param->value == 'DATE-TIME') {
+                            $trigger = '@' . $prop->getDateTime()->format('U');
+                        }
                     }
-                    else {
-                        $trigger = $attr['value'];
-                        $offset = abs($trigger);
-                        $unit = 'S';
-                        if ($offset % 86400 == 0) {
-                            $unit = 'D';
-                            $trigger = intval($trigger / 86400);
-                        }
-                        else if ($offset % 3600 == 0) {
-                            $unit = 'H';
-                            $trigger = intval($trigger / 3600);
-                        }
-                        else if ($offset % 60 == 0) {
-                            $unit = 'M';
-                            $trigger = intval($trigger / 60);
-                        }
+
+                    if (!$trigger) {
+                        $trigger = preg_replace('/PT/', '', $prop->value);
                     }
                     break;
 
@@ -525,10 +635,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     break;
                 }
             }
-            if ($trigger)
-                $event['alarms'] = $trigger . $unit . ':' . $action;
-        }
 
+            if ($trigger)
+                $event['alarms'] = $trigger . ':' . $action;
+        }
+console($event);
         return $event;
     }
 
@@ -551,5 +662,75 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         return $dt;
+    }
+
+    /**
+     * Build a valid iCal format block from the given event
+     *
+     * @param array Hash array with event properties from libkolab
+     * return string VCALENDAR block containing the VEVENT data
+     */
+    private function _to_ical($event)
+    {
+        $ve = VObject\Component::create('VEVENT');
+        $ve->add('UID', $event['uid']);
+        $ve->add('SUMMARY', $event['title']);
+        $ve->add($this->_datetime_prop('DTSTAMP', $event['changed'], true));
+        $ve->add($this->_datetime_prop('DTSTART', $event['start'], false));
+        $ve->add($this->_datetime_prop('DTEND',   $event['end'], false));
+
+        if ($event['location'])
+            $ve->add('LOCATION', $event['location']);
+        if ($event['description'])
+            $ve->add('DESCRIPTION', $event['description']);
+
+        if ($event['sequence'])
+            $ve->add('SEQUENCE', $event['sequence']);
+
+        if ($event['recurrence'])
+            $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
+
+        if ($event['alarms']) {
+            $va = VObject\Component::create('VALARM');
+            list($trigger, $va->action) = explode(':', $event['alarms']);
+            $val = libcalendaring::parse_alaram_value($trigger);
+            if ($val[1]) $va->add('TRIGGER', preg_replace('/^([-+])(.+)/', '\\1PT\\2', $trigger));
+            else         $va->add('TRIGGER', gmdate('Ymd\THis\Z', $val[0]), array('VALUE' => 'DATE-TIME'));
+            $ve->add($va);
+        }
+
+        // encapsulate in VCALENDAR container
+        $vcal = VObject\Component::create('VCALENDAR');
+        $vcal->version = '2.0';
+        $vcal->prodid = '-//Kolab DAV Server ' .KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . CalDAV\Version::VERSION . '//EN';
+        $vcal->calscale = 'GREGORIAN';
+        $vcal->add($ve);
+
+        return $vcal->serialize();
+    }
+
+    /**
+     * Create a Sabre\VObject\Property instance from a PHP DateTime object
+     *
+     * @param string Property name
+     * @param object DateTime
+     */
+    private function _datetime_prop($name, $dt, $utc = false)
+    {
+        $vdt = new VObject\Property\DateTime($name);
+        $vdt->setDateTime($dt, $db->_dateonly ? VObject\Property\DateTime::DATE : ($utc ? VObject\Property\DateTime::UTC : VObject\Property\DateTime::LOCALTZ));
+        return $vdt;
+    }
+
+
+    /**
+     * Generate an Etag string from the given event data
+     *
+     * @param array Hash array with event properties from libkolab
+     * @return string Etag string
+     */
+    private function _get_etag($event)
+    {
+        return sprintf('"%s-%d"', substr(md5($event['uid']), 0, 16), $event['_msguid']);
     }
 }

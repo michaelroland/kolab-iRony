@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Kolab calendar storage class
+ * SabreDAV Calendar derived class to encapsulate a Kolab storage folder
  *
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
@@ -36,13 +36,11 @@ use Sabre\CalDAV\Backend;
 class Calendar extends \Sabre\CalDAV\Calendar
 {
     public $id;
-    public $ready = false;
-    public $readonly = true;
     public $storage;
+    public $ready = false;
 
     private $events = array();
     private $imap_folder = 'INBOX/Calendar';
-    private $search_fields = array('title', 'description', 'location', '_attendees');
 
 
     /**
@@ -57,20 +55,6 @@ class Calendar extends \Sabre\CalDAV\Calendar
 
         $this->storage = $caldavBackend->get_storage_folder($this->id);
         $this->ready = is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder');
-
-        // Set readonly and alarms flags according to folder permissions
-        if ($this->ready) {
-            if ($this->storage->get_namespace() == 'personal') {
-                $this->readonly = false;
-            }
-            else {
-                $rights = $this->storage->get_myrights();
-                if ($rights && !PEAR::isError($rights)) {
-                    if (strpos($rights, 'i') !== false)
-                        $this->readonly = false;
-                }
-            }
-        }
     }
 
 
@@ -106,21 +90,6 @@ class Calendar extends \Sabre\CalDAV\Calendar
 
 
     /**
-     * Return color to display this calendar
-     */
-    public function __getColor()
-    {
-        // color is defined in folder METADATA
-        $metadata = $this->storage->get_metadata(array(kolab_storage::COLOR_KEY_PRIVATE, kolab_storage::COLOR_KEY_SHARED));
-        if (($color = $metadata[kolab_storage::COLOR_KEY_PRIVATE]) || ($color = $metadata[kolab_storage::COLOR_KEY_SHARED])) {
-            return $color;
-        }
-
-        return 'cc0000';
-    }
-
-
-    /**
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
@@ -136,6 +105,11 @@ class Calendar extends \Sabre\CalDAV\Calendar
     {
         // TODO: return ACL infor based on $this->storage->get_myrights()
         return parent::getACL();
+
+        $rights = $this->storage->get_myrights();
+        if ($rights && !PEAR::isError($rights)) {
+
+        }
     }
 
 }

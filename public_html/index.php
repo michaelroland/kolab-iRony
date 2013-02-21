@@ -24,8 +24,9 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-// define som environment variables used thoughout the app and libraries
+// define some environment variables used thoughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
+define('KOLAB_DAV_VERSION', '0.1.0');
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');
 define('RCUBE_CONFIG_DIR',   KOLAB_DAV_ROOT . '/config/');
@@ -59,7 +60,7 @@ require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
 // Roundcube framework initialization
 $rcube = rcube::get_instance(rcube::INIT_WITH_DB | rcube::INIT_WITH_PLUGINS);
 $rcube->plugins->init($rcube);
-$rcube->plugins->load_plugins(array('libkolab'));
+$rcube->plugins->load_plugins(array('libkolab','libcalendaring'));
 
 // convenience function, you know it well :-)
 function console() { call_user_func_array(array('rcube', 'console'), func_get_args()); }
@@ -67,11 +68,16 @@ function console() { call_user_func_array(array('rcube', 'console'), func_get_ar
 
 // quick & dirty request debugging
 if ($debug = $rcube->config->get('kolab_dav_debug')) {
-    $http_headers = $_SERVER['SERVER_PROTOCOL'] . ' ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . "\n";
+    $http_headers = $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n";
     foreach (apache_request_headers() as $hdr => $value) {
         $http_headers .= "$hdr: $value\n";
     }
-    $rcube->write_log('davdebug', $http_headers . "\n" . $HTTP_RAW_POST_DATA);
+    // read HTTP request body (with our own file handle)
+    #$in = fopen('php://input', 'r');
+    #while (!feof($in)) $http_body .= fread($in, 1024);
+    #fclose($in);
+
+    $rcube->write_log('davdebug', $http_headers . "\n" . $http_body . "\n");
     ob_start();  // turn on output buffering
 }
 
@@ -105,7 +111,7 @@ $server->setBaseUri($base_uri);
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 //$server->addPlugin(new \Sabre\DAVACL\Plugin());  // we'll add that later
-$server->addPlugin(new \Sabre\CalDAV\Plugin());
+$server->addPlugin(new \Kolab\CalDAV\Plugin());
 //$server->addPlugin(new \Sabre\CardDAV\Plugin());
 $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 
