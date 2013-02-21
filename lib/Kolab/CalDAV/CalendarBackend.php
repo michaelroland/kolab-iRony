@@ -253,7 +253,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     'uri' => $event['uid'] . '.ics',
                     'lastmodified' => $event['changed']->format('U'),
                     'calendarid' => $calendarId,
-                    'etag' => $this->_get_etag($event),
+                    'etag' => self::_get_etag($event),
                     'size' => $event['_size'],
                 );
             }
@@ -290,7 +290,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'lastmodified' => $event['changed']->format('U'),
                 'calendarid' => $calendarId,
                 'calendardata' => $this->_to_ical($event),
-                'etag' => $this->_get_etag($event),
+                'etag' => self::_get_etag($event),
             );
         }
 
@@ -341,7 +341,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         // return new Etag
-        return $success ? $this->_get_etag($object) : null;
+        return $success ? self::_get_etag($object) : null;
     }
 
     /**
@@ -399,7 +399,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         // return new Etag
-        return $this->_get_etag($object);
+        return self::_get_etag($object);
     }
 
     /**
@@ -477,6 +477,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
     /**********  Data conversion utilities  ***********/
 
+    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE', 'rsvp' => 'RSVP');
+
     /**
      * Parse the given iCal string into a hash array kolab_format_event can handle
      *
@@ -544,19 +546,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 continue;
 
             switch ($prop->name) {
-            case 'ORGANIZER':
-                break;
-
-            case 'ATTENDEE':
-                break;
-
             case 'TRANSP':
                 $event['free_busy'] = $prop->value == 'TRANSPARENT' ? 'free' : 'busy';
                 break;
 
             case 'STATUS':
                 if ($prop->value == 'TENTATIVE')
-                    $event['free_busy'] == 'tentative';
+                    $event['free_busy'] = 'tentative';
+                else if ($prop->value == 'cancelled')
+                    $event['cancelled'] = true;
                 break;
 
             case 'PRIORITY':
@@ -585,7 +583,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             case 'RECURRENCE-ID':
                 // $event['recurrence_id'] = $this->_convert_datetime($prop);
                 break;
-            
+
             case 'SEQUENCE':
                 $event['sequence'] = intval($prop->value);
                 break;
@@ -593,6 +591,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             case 'DESCRIPTION':
             case 'LOCATION':
                 $event[strtolower($prop->name)] = $prop->value;
+                break;
+
+            case 'CATEGORY':
+            case 'CATEGORIES':
+                $event['categories'] = $prop->getParts();
                 break;
 
             case 'CLASS':
@@ -606,6 +609,32 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     $event['free_busy'] == 'outofoffice';
                 else if (in_array($prop->value, array('FREE', 'BUSY', 'TENTATIVE')))
                     $event['free_busy'] = strtolower($prop->value);
+                break;
+
+            case 'ATTENDEE':
+            case 'ORGANIZER':
+                $params = array();
+                foreach ($prop->parameters as $param) {
+                    switch ($param->name) {
+                        case 'RSVP': $params[$param->name] = strtolower($param->value) == 'true'; break;
+                        default:     $params[$param->name] = $param->value; break;
+                    }
+                }
+                $attendee = self::_map_keys($params, array_flip($this->attendee_keymap));
+                $attendee['email'] = preg_replace('/^mailto:/i', '', $prop->value);
+
+                if ($prop->name == 'ORGANIZER') {
+                    $attendee['status'] = 'ACCEPTED';
+                    $event['organizer'] = $attendee;
+                }
+                else {
+                    $event['attendees'][] = $attendee;
+                }
+                break;
+
+            default:
+                if (substr($prop->name, 0, 2) == 'X-')
+                    $event['x-custom'][] = array($prop->name, strval($prop->value));
                 break;
             }
         }
@@ -624,7 +653,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                             $trigger = '@' . $prop->getDateTime()->format('U');
                         }
                     }
-
                     if (!$trigger) {
                         $trigger = preg_replace('/PT/', '', $prop->value);
                     }
@@ -639,7 +667,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             if ($trigger)
                 $event['alarms'] = $trigger . ':' . $action;
         }
-console($event);
+
         return $event;
     }
 
@@ -675,9 +703,9 @@ console($event);
         $ve = VObject\Component::create('VEVENT');
         $ve->add('UID', $event['uid']);
         $ve->add('SUMMARY', $event['title']);
-        $ve->add($this->_datetime_prop('DTSTAMP', $event['changed'], true));
-        $ve->add($this->_datetime_prop('DTSTART', $event['start'], false));
-        $ve->add($this->_datetime_prop('DTEND',   $event['end'], false));
+        $ve->add(self::_datetime_prop('DTSTAMP', $event['changed'], true));
+        $ve->add(self::_datetime_prop('DTSTART', $event['start'], false));
+        $ve->add(self::_datetime_prop('DTEND',   $event['end'], false));
 
         if ($event['location'])
             $ve->add('LOCATION', $event['location']);
@@ -690,6 +718,22 @@ console($event);
         if ($event['recurrence'])
             $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
 
+        if ($event['categories']) {
+            $cat = VObject\Property::create('CATEGORIES');
+            $cat->setParts((array)$event['categories']);
+            $ve->add($cat);
+        }
+
+        $ve->add('TRANSP', $event['free_busy'] == 'free' ? 'TRANSPARENT' : 'OPAQUE');
+
+        if ($event['priority'])
+          $ve->add('PRIORITY', $event['priority']);
+
+        if ($event['cancelled'])
+            $ve->add('STATUS', 'CANCELLED');
+        else if ($event['free_busy'] == 'tentative')
+            $ve->add('STATUS', 'TENTATIVE');
+
         if ($event['alarms']) {
             $va = VObject\Component::create('VALARM');
             list($trigger, $va->action) = explode(':', $event['alarms']);
@@ -697,6 +741,21 @@ console($event);
             if ($val[1]) $va->add('TRIGGER', preg_replace('/^([-+])(.+)/', '\\1PT\\2', $trigger));
             else         $va->add('TRIGGER', gmdate('Ymd\THis\Z', $val[0]), array('VALUE' => 'DATE-TIME'));
             $ve->add($va);
+        }
+
+        if ($event['organizer']) {
+            unset($event['organizer']['rsvp']);
+            $ve->add('ORGANIZER', 'mailto:' . $event['organizer']['email'], self::_map_keys($event['organizer'], $this->attendee_keymap));
+        }
+
+        foreach ((array)$event['attendees'] as $attendee) {
+            $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
+            $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], self::_map_keys($attendee, $this->attendee_keymap));
+        }
+
+        // add custom properties
+        foreach ((array)$event['x-custom'] as $prop) {
+            $ve->add($prop[0], $prop[1]);
         }
 
         // encapsulate in VCALENDAR container
@@ -715,11 +774,24 @@ console($event);
      * @param string Property name
      * @param object DateTime
      */
-    private function _datetime_prop($name, $dt, $utc = false)
+    private static function _datetime_prop($name, $dt, $utc = false)
     {
         $vdt = new VObject\Property\DateTime($name);
-        $vdt->setDateTime($dt, $db->_dateonly ? VObject\Property\DateTime::DATE : ($utc ? VObject\Property\DateTime::UTC : VObject\Property\DateTime::LOCALTZ));
+        $vdt->setDateTime($dt, $dt->_dateonly ? VObject\Property\DateTime::DATE : ($utc ? VObject\Property\DateTime::UTC : VObject\Property\DateTime::LOCALTZ));
         return $vdt;
+    }
+
+    /**
+     * Copy values from one hash array to another using a key-map
+     */
+    private static function _map_keys($values, $map)
+    {
+        $out = array();
+        foreach ($map as $from => $to) {
+            if (isset($values[$from]))
+                $out[$to] = $values[$from];
+        }
+        return $out;
     }
 
 
@@ -729,7 +801,7 @@ console($event);
      * @param array Hash array with event properties from libkolab
      * @return string Etag string
      */
-    private function _get_etag($event)
+    private static function _get_etag($event)
     {
         return sprintf('"%s-%d"', substr(md5($event['uid']), 0, 16), $event['_msguid']);
     }
