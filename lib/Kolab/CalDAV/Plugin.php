@@ -33,6 +33,11 @@ use Sabre\VObject;
  */
 class Plugin extends CalDAV\Plugin
 {
+    // make already parsed text/calednar blocks available for later use
+    public static $parsed_vcalendar;
+    public static $parsed_vevent;
+
+
     /**
      * Checks if the submitted iCalendar data is in fact, valid.
      *
@@ -55,7 +60,15 @@ class Plugin extends CalDAV\Plugin
         try {
             // modification: Set options to be more tolerant when parsing extended or invalid properties
             $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
-            // TODO: keep the parsed object in memory for later processing
+
+            // keep the parsed object in memory for later processing
+            if ($vobj->name == 'VCALENDAR') {
+                self::$parsed_vcalendar = $vobj;
+                foreach ($vobj->getBaseComponents('VEVENT') as $vevent) {
+                    self::$parsed_vevent = $vevent;
+                    break;
+                }
+            }
         }
         catch (VObject\ParseException $e) {
             throw new DAV\Exception\UnsupportedMediaType('This resource requires valid iCalendar 2.0 data. Parse error: ' . $e->getMessage());

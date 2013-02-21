@@ -277,7 +277,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function getCalendarObject($calendarId, $objectUri)
     {
-        console(__METHOD__, $calendarId, $objectUri);  # , debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS));
+        console(__METHOD__, $calendarId, $objectUri);
 
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
@@ -320,7 +320,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
-        $object = $this->_parse_calendar_object($calendarData);
+        $object = $this->parse_calendar_data($calendarData, $uid);
 
         if ($object['uid'] == $uid) {
             $success = $storage->save($object, 'event');
@@ -362,11 +362,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function updateCalendarObject($calendarId, $objectUri, $calendarData)
     {
-        console(__METHOD__, $calendarId, $objectUri, $calendarData);
+        console(__METHOD__, $calendarId, $objectUri);
 
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
-        $object = $this->_parse_calendar_object($calendarData);
+        $object = $this->parse_calendar_data($calendarData, $uid);
 
         // sanity check
         if ($object['uid'] != $uid) {
@@ -485,17 +485,28 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * @param string iCal data block
      * @return array Hash array with event properties or null on failure
      */
-    private function _parse_calendar_object($calendarData)
+    private function parse_calendar_data($calendarData, $uid)
     {
         try {
-            $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
-
-            if ($vobject->name == 'VCALENDAR') {
-                foreach ($vobject->getBaseComponents('VEVENT') as $vevent) {
-                    $object = $this->_to_array($vevent);
-                    if (!empty($object['uid'])) {
-                        return $object;
+            // use already parsed object
+            if (Plugin::$parsed_vevent && Plugin::$parsed_vevent->UID == $uid) {
+                $vevent = Plugin::$parsed_vevent;
+            }
+            else {
+                $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+                if ($vobject->name == 'VCALENDAR') {
+                    foreach ($vobject->getBaseComponents('VEVENT') as $ve) {
+                        $vevent = $ve;
+                        break;
                     }
+                }
+            }
+
+            // convert the VEvent object into a hash array
+            if ($vevent && $vevent->name == 'VEVENT') {
+                $object = $this->_to_array($vevent);
+                if (!empty($object['uid'])) {
+                    return $object;
                 }
             }
         }
@@ -503,7 +514,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
                 'file' => __FILE__, 'line' => __LINE__,
-                'message' => "iCal data Parse error: " . $e->getMessage()),
+                'message' => "iCal data parse error: " . $e->getMessage()),
                 true, false);
         }
 
@@ -522,8 +533,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             'uid'     => strval($ve->UID),
             'title'   => strval($ve->SUMMARY),
             'changed' => $ve->DTSTAMP->getDateTime(),
-            'start'   => $this->_convert_datetime($ve->DTSTART),
-            'end'     => $this->_convert_datetime($ve->DTEND),
+            'start'   => self::_convert_datetime($ve->DTSTART),
+            'end'     => self::_convert_datetime($ve->DTEND),
             // set defaults
             'free_busy' => 'busy',
             'priority' => 0,
@@ -577,11 +588,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 break;
 
             case 'EXDATE':
-                $event['recurrence']['EXDATE'][] = $this->_convert_datetime($prop);
+                $event['recurrence']['EXDATE'][] = self::_convert_datetime($prop);
                 break;
 
             case 'RECURRENCE-ID':
-                // $event['recurrence_id'] = $this->_convert_datetime($prop);
+                // $event['recurrence_id'] = self::_convert_datetime($prop);
                 break;
 
             case 'SEQUENCE':
@@ -674,7 +685,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     /**
      * Helper method to correctly interpret an all-day date value
      */
-    private function _convert_datetime($prop)
+    private static function _convert_datetime($prop)
     {
         if (empty($prop)) {
             return null;
