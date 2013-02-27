@@ -24,6 +24,7 @@
 namespace Kolab\CalDAV;
 
 use \PEAR;
+use \rcube;
 use \rcube_charset;
 use \kolab_storage;
 use \libcalendaring;
@@ -217,20 +218,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      *
      * Every item contains an array with the following keys:
      *   * id - unique identifier which will be used for subsequent updates
-     *   * calendardata - The iCalendar-compatible calendar data
+     *   * calendardata - The iCalendar-compatible calendar data (optional)
      *   * uri - a unique key which will be used to construct the uri. This can be any arbitrary string.
      *   * lastmodified - a timestamp of the last modification time
-     *   * etag - An arbitrary string, surrounded by double-quotes. (e.g.:
-     *   '  "abcdef"')
+     *   * etag - An arbitrary string, surrounded by double-quotes. (e.g.: "abcdef"')
      *   * calendarid - The calendarid as it was passed to this function.
      *   * size - The size of the calendar objects, in bytes.
      *
      * Note that the etag is optional, but it's highly encouraged to return for
      * speed reasons.
-     *
-     * The calendardata is also optional. If it's not returned
-     * 'getCalendarObject' will be called later, which *is* expected to return
-     * calendardata.
      *
      * If neither etag or size are specified, the calendardata will be
      * used/fetched to determine these numbers. If both are specified the
@@ -362,7 +358,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function updateCalendarObject($calendarId, $objectUri, $calendarData)
     {
-        console(__METHOD__, $calendarId, $objectUri);
+        console(__METHOD__, $calendarId, $objectUri, $calendarData);
 
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
@@ -382,8 +378,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // copy meta data (starting with _) from old object
         $old = $storage->get_object($uid);
         foreach ((array)$old as $key => $val) {
-          if (!isset($object[$key]) && $key[0] == '_')
-            $object[$key] = $val;
+            if (!isset($object[$key]) && $key[0] == '_')
+                $object[$key] = $val;
         }
 
         // save object
@@ -437,16 +433,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * returned from this method will be called almost immediately after. You
      * may want to anticipate this to speed up these requests.
      *
-     * This method provides a default implementation, which parses *all* the
-     * iCalendar objects in the specified calendar.
-     *
-     * This default may well be good enough for personal use, and calendars
-     * that aren't very large. But if you anticipate high usage, big calendars
-     * or high loads, you are strongly adviced to optimize certain paths.
-     *
-     * The best way to do so is override this method and to optimize
-     * specifically for 'common filters'.
-     *
      * Requests that are extremely common are:
      *   * requests for just VEVENTS
      *   * requests for just VTODO
@@ -470,8 +456,20 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function calendarQuery($calendarId, array $filters)
     {
-        // TODO: implement this
-        return array();
+      console(__METHOD__, $calendarId);
+
+      // TODO: build kolab storage query from $filters
+      $query = array();
+
+      $results = array();
+      if ($storage = $this->get_storage_folder($calendarId)) {
+          foreach ((array)$storage->select($query) as $event) {
+              // TODO: cache the already fetched events in memory (really?)
+              $results[] = $event['uid'] . '.ics';
+          }
+      }
+
+      return $results;
     }
 
 
@@ -490,6 +488,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         try {
             // use already parsed object
             if (Plugin::$parsed_vevent && Plugin::$parsed_vevent->UID == $uid) {
+                $vobject = Plugin::$parsed_vcalendar;
                 $vevent = Plugin::$parsed_vevent;
             }
             else {
@@ -506,6 +505,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             if ($vevent && $vevent->name == 'VEVENT') {
                 $object = $this->_to_array($vevent);
                 if (!empty($object['uid'])) {
+                    // parse recurrence exceptions
+                    if ($object['recurrence']) {
+                        foreach ($vobject->children as $i => $component) {
+                            if ($component->name == 'VEVENT' && isset($component->{'RECURRENCE-ID'})) {
+                                $object['recurrence']['EXCEPTIONS'][] = $this->_to_array($component);
+                            }
+                        }
+                    }
+
                     return $object;
                 }
             }
@@ -526,6 +534,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      *
      * @param object Vevent object to convert
      * @return array Hash array with event properties
+     * @TODO: move this to libcalendaring for common use
      */
     private function _to_array($ve)
     {
@@ -574,6 +583,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 break;
 
             case 'RRULE':
+                $params = array();
                 // parse recurrence rule attributes
                 foreach (explode(';', $prop->value) as $par) {
                     list($k, $v) = explode('=', $par);
@@ -588,7 +598,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 break;
 
             case 'EXDATE':
-                $event['recurrence']['EXDATE'][] = self::_convert_datetime($prop);
+                $event['recurrence']['EXDATE'] = array_merge((array)$event['recurrence']['EXDATE'], (array)self::_convert_datetime($prop));
                 break;
 
             case 'RECURRENCE-ID':
@@ -690,6 +700,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         if (empty($prop)) {
             return null;
         }
+        else if ($prop instanceof VObject\Property\MultiDateTime) {
+            $dt = array();
+            $dateonly = ($prop->getDateType() & VObject\Property\DateTime::DATE);
+            foreach ($prop->getDateTimes() as $item) {
+                $item->_dateonly = $dateonly;
+                $dt[] = $item;
+            }
+        }
         else if ($prop instanceof VObject\Property\DateTime) {
             $dt = $prop->getDateTime();
             if ($prop->getDateType() & VObject\Property\DateTime::DATE) {
@@ -707,16 +725,22 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * Build a valid iCal format block from the given event
      *
      * @param array Hash array with event properties from libkolab
-     * return string VCALENDAR block containing the VEVENT data
+     * @param object RECURRENCE-ID property when serializing a recurrence exception
+     * @return mixed VCALENDAR string containing the VEVENT data
+     *    or VObject\VEvent object with a recurrence exception instance
+     * @TODO: move this to libcalendaring for common use
      */
-    private function _to_ical($event)
+    private function _to_ical($event, $recurrence_id = null)
     {
         $ve = VObject\Component::create('VEVENT');
         $ve->add('UID', $event['uid']);
-        $ve->add('SUMMARY', $event['title']);
         $ve->add(self::_datetime_prop('DTSTAMP', $event['changed'], true));
         $ve->add(self::_datetime_prop('DTSTART', $event['start'], false));
         $ve->add(self::_datetime_prop('DTEND',   $event['end'], false));
+        $ve->add('SUMMARY', $event['title']);
+
+        if ($recurrence_id)
+            $ve->add($recurrence_id);
 
         if ($event['location'])
             $ve->add('LOCATION', $event['location']);
@@ -726,8 +750,25 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         if ($event['sequence'])
             $ve->add('SEQUENCE', $event['sequence']);
 
-        if ($event['recurrence'])
+        if ($event['recurrence']) {
+            if ($exdates = $event['recurrence']['EXDATE']) {
+                unset($event['recurrence']['EXDATE']);  // don't serialize EXDATEs into RRULE value
+            }
+
             $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
+
+            // add EXDATEs esch one per line (for Thunderbird Lightning)
+            if ($exdates) {
+                foreach ($exdates as $ex) {
+                    if ($ex instanceof \DateTime) {
+                        $exd = clone $event['start'];
+                        $exd->setDate($ex->format('Y'), $ex->format('n'), $ex->format('j'));
+                        $exd->setTimeZone(new \DateTimeZone('UTC'));
+                        $ve->add(new VObject\Property('EXDATE', $exd->format('Ymd\\THis\\Z')));
+                    }
+                }
+            }
+        }
 
         if ($event['categories']) {
             $cat = VObject\Property::create('CATEGORIES');
@@ -769,12 +810,24 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $ve->add($prop[0], $prop[1]);
         }
 
+        // we're dealing with a recurrence exception here, so no final serialization is desired
+        if ($recurrence_id)
+            return $ve;
+
         // encapsulate in VCALENDAR container
         $vcal = VObject\Component::create('VCALENDAR');
         $vcal->version = '2.0';
         $vcal->prodid = '-//Kolab DAV Server ' .KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . CalDAV\Version::VERSION . '//EN';
         $vcal->calscale = 'GREGORIAN';
         $vcal->add($ve);
+
+        // append recurrence exceptions
+        if ($event['recurrence']['EXCEPTIONS']) {
+            foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
+                $vcal->add($this->_to_ical($ex, VObject\Property::create('RECURRENCE-ID', $ex['start'])));
+            }
+        }
+
 
         return $vcal->serialize();
     }
