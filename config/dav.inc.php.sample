@@ -24,21 +24,8 @@
 
 $rcmail_config = array();
 
-// Log IMAP conversation to <log_dir>/imap or to syslog
-$rcmail_config['imap_debug'] = false;
-
 // Log DAV requests to <log_dir>/davdebug
 $rcmail_config['kolab_dav_debug'] = false;
-
-// IMAP server
-$rcmail_config['default_host'] = '192.168.0.22';
-#$rcmail_config['default_host'] = 'localhost';
-
-// Enables messages cache. Only 'db' cache is supported.
-$rcmail_config['messages_cache'] = false;
-
-// Enable local cache for Kolab objects
-$rcmail_config['kolab_cache'] = true;
 
 // User agent string written to kolab storage MIME messages
 $rcmail_config['useragent'] = 'Kolab DAV Server libkolab/' . RCUBE_VERSION;
