@@ -59,6 +59,7 @@ require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
 
 // Roundcube framework initialization
 $rcube = rcube::get_instance(rcube::INIT_WITH_DB | rcube::INIT_WITH_PLUGINS);
+$rcube->config->load_from_file(RCUBE_CONFIG_DIR . 'dav.inc.php');
 $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins(array('libkolab','libcalendaring'));
 
