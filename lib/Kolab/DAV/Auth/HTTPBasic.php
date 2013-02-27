@@ -34,7 +34,7 @@ use Kolab\Utils\CacheAPC;
 class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
 {
     // Make the current user name availabel to all classes
-    public static $current_user;
+    public static $current_user = null;
 
     /**
      * Validates a username and password
@@ -96,5 +96,18 @@ class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
         }
 
         return $success;
+    }
+
+    /**
+     * Returns information about the currently logged in username.
+     *
+     * If nobody is currently logged in, this method should return null.
+     *
+     * @return string|null
+     */
+    public function getCurrentUser()
+    {
+        // return the canonic user name
+        return self::$current_user;
     }
 }

@@ -25,6 +25,9 @@
 $rcmail_config = array();
 
 // Log DAV requests to <log_dir>/davdebug
+$rcmail_config['base_uri'] = null;
+
+// Log DAV requests to <log_dir>/davdebug
 $rcmail_config['kolab_dav_debug'] = false;
 
 // User agent string written to kolab storage MIME messages

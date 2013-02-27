@@ -279,7 +279,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $storage = $this->get_storage_folder($calendarId);
 
         if ($storage && ($event = $storage->get_object($uid))) {
-            console('FOUND: ' . $event['uid']);
             return array(
                 'id' => $event['uid'],
                 'uri' => $event['uid'] . '.ics',

@@ -84,7 +84,7 @@ if ($debug = $rcube->config->get('kolab_dav_debug')) {
 
 
 // Make sure this setting is turned on and reflects the root url of the *DAV server.
-$base_uri = slashify(substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT'])));
+$base_uri = $rcube->config->get('base_uri', slashify(substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT']))));
 
 
 // create the various backend instances
@@ -111,7 +111,7 @@ $server->setBaseUri($base_uri);
 
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
-//$server->addPlugin(new \Sabre\DAVACL\Plugin());  // we'll add that later
+$server->addPlugin(new \Sabre\DAVACL\Plugin());  // we'll add that later
 $server->addPlugin(new \Kolab\CalDAV\Plugin());
 //$server->addPlugin(new \Sabre\CardDAV\Plugin());
 $server->addPlugin(new \Sabre\DAV\Browser\Plugin());

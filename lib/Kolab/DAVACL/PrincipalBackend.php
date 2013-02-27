@@ -63,7 +63,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
 
         if (HTTPBasic::$current_user) {
             return array(
-                'uri' => '/' . HTTPBasic::$current_user,
+                'uri' => 'principals/' . HTTPBasic::$current_user,
                 '{DAV:}displayname' => HTTPBasic::$current_user,
             );
         }
@@ -116,6 +116,8 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      */
     public function getPrincipalByPath($path)
     {
+        console(__METHOD__, $path);
+
         list($prefix,$name) = explode('/', $path);
 
         if ($prefix == 'principals' && $name == HTTPBasic::$current_user) {

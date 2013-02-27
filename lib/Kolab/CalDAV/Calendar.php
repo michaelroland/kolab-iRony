@@ -59,19 +59,6 @@ class Calendar extends \Sabre\CalDAV\Calendar
 
 
     /**
-     * Getter for a nice and human readable name for this calendar
-     * See http://wiki.kolab.org/UI-Concepts/Folder-Listing for reference
-     *
-     * @return string Name of this calendar
-     */
-    public function getName()
-    {
-        $folder = kolab_storage::object_name($this->imap_folder, $this->namespace);
-        return $folder;
-    }
-
-
-    /**
      * Returns the owner principal
      *
      * This must be a url to a principal, or null if there's no owner
