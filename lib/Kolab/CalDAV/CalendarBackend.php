@@ -653,6 +653,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 }
                 break;
 
+            case 'ATTACH':
+                if (substr($prop->value, 0, 4) == 'http') {
+                    $event['links'][] = $prop->value;
+                }
+                break;
+
             default:
                 if (substr($prop->name, 0, 2) == 'X-')
                     $event['x-custom'][] = array($prop->name, strval($prop->value));
@@ -803,6 +809,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         foreach ((array)$event['attendees'] as $attendee) {
             $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
             $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], self::_map_keys($attendee, $this->attendee_keymap));
+        }
+
+        foreach ((array)$event['links'] as $uri) {
+            $ve->add('ATTACH', $uri);
         }
 
         // add custom properties
