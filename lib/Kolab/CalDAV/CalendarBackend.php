@@ -621,8 +621,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
             case 'CLASS':
             case 'X-CALENDARSERVER-ACCESS':
-                $sensitivity_map = array('PUBLIC' => 0, 'PRIVATE' => 1, 'CONFIDENTIAL' => 2);
-                $event['sensitivity'] = $sensitivity_map[$prop->value];
+                $event['sensitivity'] = strtolower($prop->value);
                 break;
 
             case 'X-MICROSOFT-CDO-BUSYSTATUS':
@@ -791,6 +790,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $ve->add('STATUS', 'CANCELLED');
         else if ($event['free_busy'] == 'tentative')
             $ve->add('STATUS', 'TENTATIVE');
+
+        if (!empty($event['sensitivity']))
+            $ve->add('CLASS', strtoupper($event['sensitivity']));
 
         if ($event['alarms']) {
             $va = VObject\Component::create('VALARM');
