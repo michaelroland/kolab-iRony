@@ -80,22 +80,42 @@ class Calendar extends \Sabre\CalDAV\Calendar
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
-     *   * 'privilege', a string such as {DAV:}read or {DAV:}write. These are
-     *     currently the only supported privileges
-     *   * 'principal', a url to the principal who owns the node
-     *   * 'protected' (optional), indicating that this ACE is not allowed to
-     *      be updated.
+     *   - 'privilege', a string such as {DAV:}read or {DAV:}write. These are currently the only supported privileges
+     *   - 'principal', a url to the principal who owns the node
+     *   - 'protected' (optional), indicating that this ACE is not allowed to be updated.
      *
      * @return array
      */
     public function getACL()
     {
-        // TODO: return ACL infor based on $this->storage->get_myrights()
-        return parent::getACL();
-
+        // return ACL information based on IMAP MYRIGHTS
         $rights = $this->storage->get_myrights();
         if ($rights && !PEAR::isError($rights)) {
+            // user has at least read access to calendar folders listed
+            $acl = array(
+                array(
+                    'privilege' => '{DAV:}read',
+                    'principal' => $this->calendarInfo['principaluri'],
+                    'protected' => true,
+                ),
+            );
 
+            $owner = $this->getOwner();
+            $is_owner = $owner == $this->calendarInfo['principaluri'];
+
+            if ($is_owner || strpos($rights, 'i') !== false) {
+                $acl[] = array(
+                    'privilege' => '{DAV:}write',
+                    'principal' => $this->calendarInfo['principaluri'],
+                    'protected' => true,
+                );
+            }
+
+            return $acl;
+        }
+        else {
+            // fallback to default ACL rules based on ownership
+            return parent::getACL();
         }
     }
 

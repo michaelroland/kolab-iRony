@@ -108,7 +108,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // color is defined in folder METADATA
         $metadata = $folder->get_metadata(array(kolab_storage::COLOR_KEY_PRIVATE, kolab_storage::COLOR_KEY_SHARED));
         if (($color = $metadata[kolab_storage::COLOR_KEY_PRIVATE]) || ($color = $metadata[kolab_storage::COLOR_KEY_SHARED])) {
-            return $color;
+            return '#' . $color;
         }
 
         return '';

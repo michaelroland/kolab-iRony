@@ -221,17 +221,15 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
-     *   * 'privilege', a string such as {DAV:}read or {DAV:}write. These are
-     *     currently the only supported privileges
-     *   * 'principal', a url to the principal who owns the node
-     *   * 'protected' (optional), indicating that this ACE is not allowed to
-     *      be updated.
+     *   - 'privilege', a string such as {DAV:}read or {DAV:}write. These are currently the only supported privileges
+     *   - 'principal', a url to the principal who owns the node
+     *   - 'protected' (optional), indicating that this ACE is not allowed to be updated.
      *
      * @return array
      */
     public function getACL()
     {
-        // TODO: implement this
+        // define rights for the user's calendar root (which is in fact INBOX)
         return array(
             array(
                 'privilege' => '{DAV:}read',
@@ -243,6 +241,7 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
                 'principal' => $this->principalInfo['uri'],
                 'protected' => true,
             ),
+/* TODO: implement sharing support
             array(
                 'privilege' => '{DAV:}read',
                 'principal' => $this->principalInfo['uri'] . '/calendar-proxy-write',
@@ -258,6 +257,7 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
                 'principal' => $this->principalInfo['uri'] . '/calendar-proxy-read',
                 'protected' => true,
             ),
+*/
         );
     }
 

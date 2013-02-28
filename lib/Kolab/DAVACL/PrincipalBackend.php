@@ -33,20 +33,6 @@ use Kolab\DAV\Auth\HTTPBasic;
  */
 class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterface
 {
-    protected $fieldmap = array(
-         // The users' real name.
-        '{DAV:}displayname' => 'displayname',
-
-         // The users' primary email-address.
-        '{http://sabredav.org/ns}email-address' => 'email',
-
-        /**
-         * This property is actually used by the CardDAV plugin, where it gets
-         * mapped to {http://calendarserver.orgi/ns/}me-card.
-         */
-        '{http://sabredav.org/ns}vcard-url' => 'vcardurl',
-    );
-
     /**
      * Sets up the backend.
      */
