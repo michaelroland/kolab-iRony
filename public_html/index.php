@@ -92,6 +92,7 @@ $auth_backend      = new \Kolab\DAV\Auth\HTTPBasic();
 $principal_backend = new \Kolab\DAVACL\PrincipalBackend();
 //$carddav_backend   = new \Kolab\CardDAV\ContactsBackend();
 $caldav_backend    = new \Kolab\CalDAV\CalendarBackend();
+$caldav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
 
 
 // Build the directory tree
