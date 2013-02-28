@@ -41,6 +41,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 {
     private $calendars;
     private $folders;
+    private $useragent;
 
     /**
      * Read available calendar folders from server
@@ -471,6 +472,23 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
       return $results;
     }
 
+    /**
+     * Set User-Agent string of the connected client
+     */
+    public function setUserAgent($uastring)
+    {
+        $ua_classes = array(
+            'ical'      => 'iCal/\d',
+            'lightning' => 'Lightning/\d',
+        );
+
+        foreach ($ua_classes as $class => $regex) {
+            if (preg_match("!$regex!", $uastring)) {
+                $this->useragent = $class;
+                break;
+            }
+        }
+    }
 
     /**********  Data conversion utilities  ***********/
 
@@ -540,6 +558,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $event = array(
             'uid'     => strval($ve->UID),
             'title'   => strval($ve->SUMMARY),
+            'created' => $ve->CREATED ? $ve->CREATED->getDateTime() : null,
             'changed' => $ve->DTSTAMP->getDateTime(),
             'start'   => self::_convert_datetime($ve->DTSTART),
             'end'     => self::_convert_datetime($ve->DTEND),
@@ -738,13 +757,19 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         $ve = VObject\Component::create('VEVENT');
         $ve->add('UID', $event['uid']);
-        $ve->add(self::_datetime_prop('DTSTAMP', $event['changed'], true));
+
+        if (!empty($event['created']))
+            $ve->add(self::_datetime_prop('CREATED', $event['created'], true));
+        if (!empty($event['changed']))
+            $ve->add(self::_datetime_prop('DTSTAMP', $event['changed'], true));
+
         $ve->add(self::_datetime_prop('DTSTART', $event['start'], false));
         $ve->add(self::_datetime_prop('DTEND',   $event['end'], false));
-        $ve->add('SUMMARY', $event['title']);
 
         if ($recurrence_id)
             $ve->add($recurrence_id);
+
+        $ve->add('SUMMARY', $event['title']);
 
         if ($event['location'])
             $ve->add('LOCATION', $event['location']);
@@ -754,14 +779,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         if ($event['sequence'])
             $ve->add('SEQUENCE', $event['sequence']);
 
-        if ($event['recurrence']) {
+        if ($event['recurrence'] && !$recurrence_id) {
             if ($exdates = $event['recurrence']['EXDATE']) {
                 unset($event['recurrence']['EXDATE']);  // don't serialize EXDATEs into RRULE value
             }
 
             $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
 
-            // add EXDATEs esch one per line (for Thunderbird Lightning)
+            // add EXDATEs each one per line (for Thunderbird Lightning)
             if ($exdates) {
                 foreach ($exdates as $ex) {
                     if ($ex instanceof \DateTime) {
@@ -835,7 +860,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // append recurrence exceptions
         if ($event['recurrence']['EXCEPTIONS']) {
             foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
-                $vcal->add($this->_to_ical($ex, VObject\Property::create('RECURRENCE-ID', $ex['start'])));
+                $exdate = clone $event['start'];
+                $exdate->setDate($ex['start']->format('Y'), $ex['start']->format('n'), $ex['start']->format('j'));
+                $recurrence_id = self::_datetime_prop('RECURRENCE-ID', $exdate);
+                // if ($ex['thisandfuture'])  // not supported by any client :-(
+                //    $recurrence_id->add('RANGE', 'THISANDFUTURE');
+                $vcal->add($this->_to_ical($ex, $recurrence_id));
             }
         }
 
