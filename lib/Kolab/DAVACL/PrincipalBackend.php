@@ -23,6 +23,7 @@
 
 namespace Kolab\DAVACL;
 
+use \rcube;
 use Sabre\DAV\Exception;
 use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
@@ -62,9 +63,12 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         console(__METHOD__, HTTPBasic::$current_user);
 
         if (HTTPBasic::$current_user) {
+            $user_email = rcube::get_instance()->get_user_email();
             return array(
                 'uri' => 'principals/' . HTTPBasic::$current_user,
                 '{DAV:}displayname' => HTTPBasic::$current_user,
+                '{http://sabredav.org/ns}email-address' => $user_email,
+                '{http://calendarserver.org/ns/}email-address-set' => $user_email,
             );
         }
 
