@@ -71,7 +71,7 @@ class Calendar extends \Sabre\CalDAV\Calendar
             return $this->calendarInfo['principaluri'];
         }
         else {
-            return null;  // return $this->storage->get_owner();
+            return 'principals/' . $this->storage->get_owner();
         }
     }
 

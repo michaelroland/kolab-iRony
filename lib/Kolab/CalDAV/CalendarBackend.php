@@ -78,6 +78,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
             );
+
+            // these properties are used for sahring supprt (not yet active)
+            if (false && $folder->get_namespace() != 'personal') {
+                $rights = $folder->get_myrights();
+                $this->calendars[$id]['{http://calendarserver.org/ns/}shared-url'] = '/calendars/' . $folder->get_owner() . '/' . $id;
+                $this->calendars[$id]['{http://calendarserver.org/ns/}owner-principal'] = $folder->get_owner();
+                $this->calendars[$id]['{http://sabredav.org/ns}read-only'] = strpos($rights, 'i') === false;
+            }
         }
 
         return $this->calendars;
