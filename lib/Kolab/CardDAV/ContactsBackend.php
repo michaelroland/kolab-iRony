@@ -388,6 +388,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         'mobile'  => 'cell',
         'other'   => 'textphone',
     );
+    
+    private $improtocols = array(
+        'jabber' => 'xmpp',
+    );
 
 
     /**
@@ -478,15 +482,16 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('URL', $website['url'], array('type' => strtoupper($website['type'])));
         }
 
+        $improtocolmap = array_flip($this->improtocols);
         foreach ((array)$contact['im'] as $im) {
             list($prot, $val) = explode(':', $im);
-            if ($val) $vc->add('x-' . $prot, $val);
+            if ($val) $vc->add('x-' . ($improtocolmap[$prot] ?: $prot), $val);
             else      $vc->add('IMPP', $im);
         }
 
         foreach ((array)$contact['address'] as $adr) {
             $vadr = VObject\Property::create('ADR', null, array('type' => strtoupper($adr['type'])));
-            $vadr->setParts(array('','', $adr['street'], $adr['locality'], $adr['region'], $adr['zipcode'], $adr['country']));
+            $vadr->setParts(array('','', $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']));
             $vc->add($vadr);
         }
 
@@ -494,18 +499,19 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('NOTE', $contact['notes']);
 
         if (!empty($contact['gender']))
-            $vc->add('X-GENDER', $contact['gender']);
+            $vc->add('SEX', $contact['gender']);
 
         if (!empty($contact['birthday']) && $contact['birthday'] instanceof \DateTime) {
+            // FIXME: Date values are ignored by Thunderbird
             $contact['birthday']->_dateonly = true;
             $vc->add(VObjectUtils::datetime_prop('BDAY', $contact['birthday'], false));
         }
         if (!empty($contact['anniversary']) && $contact['birthday'] instanceof \DateTime) {
             $contact['anniversary']->_dateonly = true;
-            $vc->add(VObjectUtils::datetime_prop('X-ANNIVERSARY', $contact['anniversary'], false));
+            $vc->add(VObjectUtils::datetime_prop('ANNIVERSARY', $contact['anniversary'], false));
         }
 
-        if ($contact['categories']) {
+        if (!empty($contact['categories'])) {
             $cat = VObject\Property::create('CATEGORIES');
             $cat->setParts((array)$contact['categories']);
             $vc->add($cat);
@@ -517,6 +523,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['photo'])) {
             $vc->PHOTO = base64_encode($contact['photo']);
             $vc->PHOTO->add('BASE64', null);
+        }
+
+        // add custom properties
+        foreach ((array)$contact['x-custom'] as $prop) {
+            $vc->add($prop[0], $prop[1]);
         }
 
         if (!empty($contact['changed']))
@@ -561,7 +572,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'ORG':
-                    list($contact['categories'], $contact['department']) = $prop->getParts();
+                    list($contact['organization'], $contact['department']) = $prop->getParts();
                     break;
 
                 case 'CATEGORY':
@@ -589,7 +600,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 case 'ADR':
                     $type = $prop->offsetGet('type');
                     $adr = array('type' => strval($type));
-                    list(,, $adr['street'], $adr['locality'], $adr['region'], $adr['zipcode'], $adr['country']) = $prop->getParts();
+                    list(,, $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']) = $prop->getParts();
                     $contact['address'][] = $adr;
                     break;
 
@@ -598,12 +609,17 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     $contact['birthday']->_dateonly = true;
                     break;
 
+                case 'ANNIVERSARY':
                 case 'X-ANNIVERSARY':
                     $contact['anniversary'] = new \DateTime($prop->value);
                     $contact['anniversary']->_dateonly = true;
                     break;
 
+                case 'SEX':
                 case 'X-GENDER':
+                    $contact['gender'] = $prop->value;
+                    break;
+
                 case 'X-PROFESSION':
                 case 'X-SPOUSE':
                     $contact[strtolower(substr($prop->name, 2))] = $prop->value;
@@ -622,7 +638,13 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 case 'X-YAHOO':
                 case 'X-SKYPE':
                     $protocol = strtolower(substr($prop->name, 2));
-                    $contact['im'][] = $protocol. ':' . $prop->value;
+                    $contact['im'][] = ($this->improtocols[$protocol] ?: $protocol) . ':' . preg_replace('/^[a-z]+:/i', '', $prop->value);
+                    break;
+
+                case 'IMPP':
+                    $type = strtolower((string)$prop->offsetGet('X-SERVICE-TYPE'));
+                    $protocol = $type ? ($this->improtocols[$type] ?: $type) . ':' : '';
+                    $contact['im'][] = $protocol . $prop->value;
                     break;
 
                 case 'PHOTO':
