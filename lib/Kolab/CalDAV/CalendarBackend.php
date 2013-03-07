@@ -28,6 +28,7 @@ use \rcube;
 use \rcube_charset;
 use \kolab_storage;
 use \libcalendaring;
+use Kolab\Utils\VObjectUtils;
 use Sabre\CalDAV;
 use Sabre\VObject;
 
@@ -163,9 +164,39 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * @param array $properties
      * @return void
      */
-    public function createCalendar($principalUri,$calendarUri,array $properties)
+    public function createCalendar($principalUri, $calendarUri, array $properties)
     {
-        // TODO: implement this
+        console(__METHOD__, $calendarUri, $properties);
+
+        $props = array(
+            'name' => $calendarUri,
+            'type' => 'event',
+            'subscribed' => true
+        );
+
+        foreach ($properties as $prop => $val) {
+            switch ($prop) {
+                case '{DAV:}displayname':
+                    // ignore for creating, URI is used
+                    break;
+
+                case '{http://apple.com/ns/ical/}calendar-color':
+                    $props['color'] = substr(trim($val, '#'), 0, 6);
+                    break;
+
+                default:
+                    // unsupported property
+            }
+        }
+
+        if (!empty($props['name']) && !kolab_storage::folder_update($props)) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error creating a new calendar folder '$props[name]':" . kolab_storage::$last_error),
+                true, false);
+            return false;
+        }
     }
 
     /**
@@ -206,8 +237,58 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function updateCalendar($calendarId, array $mutations)
     {
-        // TODO: implement this
-        return false;
+        console(__METHOD__, $calendarId, $mutations);
+
+        $folder = $this->get_storage_folder($calendarId);
+        $errors = array();
+        $updates = array();
+
+        foreach ($mutations as $prop => $val) {
+            switch ($prop) {
+                case '{DAV:}displayname':
+                    // restrict renaming to personal folders only
+                    if ($folder->get_namespace() == 'personal') {
+                        $parts = explode('/', $val);
+                        $updates['oldname'] = $folder->name;
+                        $updates['name'] = array_pop($parts);
+                        $updates['parent'] = join('/', $parts);
+                    }
+                    else {
+                        $errors[403][$prop] = null;
+                    }
+                    break;
+
+                case '{http://apple.com/ns/ical/}calendar-color':
+                    $updates['oldname'] = $folder->name;
+                    $updates['color'] = substr(trim($val, '#'), 0, 6);
+                    break;
+
+                default:
+                    // unsupported property
+                    $errors[403][$prop] = null;
+            }
+        }
+
+        // execute folder update
+        if (!empty($updates)) {
+            // 'name' and 'parent' properties are alwas required
+            if (empty($updates['name'])) {
+                $parts = explode('/', $folder->name);
+                $updates['name'] = rcube_charset::convert(array_pop($parts), 'UTF7-IMAP');
+                $updates['parent'] = join('/', $parts);
+            }
+
+            if (!kolab_storage::folder_update($updates)) {
+                rcube::raise_error(array(
+                    'code' => 600, 'type' => 'php',
+                    'file' => __FILE__, 'line' => __LINE__,
+                    'message' => "Error updating properties for folder $folder->name:" . kolab_storage::$last_error),
+                    true, false);
+                return false;
+            }
+        }
+
+        return empty($errors) ? true : $errors;
     }
 
     /**
@@ -218,7 +299,16 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function deleteCalendar($calendarId)
     {
-        // TODO: implement this
+        console(__METHOD__, $calendarId);
+
+        $folder = $this->get_storage_folder($calendarId);
+        if ($folder && !kolab_storage::folder_delete($folder->name)) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error deleting calendar folder $folder->name"),
+                true, false);
+        }
     }
 
 
@@ -487,6 +577,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         $ua_classes = array(
             'ical'      => 'iCal/\d',
+            'outlook'   => 'iCal4OL/\d',
             'lightning' => 'Lightning/\d',
         );
 
@@ -497,6 +588,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             }
         }
     }
+
 
     /**********  Data conversion utilities  ***********/
 
@@ -568,8 +660,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             'title'   => strval($ve->SUMMARY),
             'created' => $ve->CREATED ? $ve->CREATED->getDateTime() : null,
             'changed' => $ve->DTSTAMP->getDateTime(),
-            'start'   => self::_convert_datetime($ve->DTSTART),
-            'end'     => self::_convert_datetime($ve->DTEND),
+            'start'   => VObjectUtils::convert_datetime($ve->DTSTART),
+            'end'     => VObjectUtils::convert_datetime($ve->DTEND),
             // set defaults
             'free_busy' => 'busy',
             'priority' => 0,
@@ -624,11 +716,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 break;
 
             case 'EXDATE':
-                $event['recurrence']['EXDATE'] = array_merge((array)$event['recurrence']['EXDATE'], (array)self::_convert_datetime($prop));
+                $event['recurrence']['EXDATE'] = array_merge((array)$event['recurrence']['EXDATE'], (array)VObjectUtils::convert_datetime($prop));
                 break;
 
             case 'RECURRENCE-ID':
-                // $event['recurrence_id'] = self::_convert_datetime($prop);
+                // $event['recurrence_id'] = VObjectUtils::convert_datetime($prop);
                 break;
 
             case 'SEQUENCE':
@@ -666,7 +758,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                         default:     $params[$param->name] = $param->value; break;
                     }
                 }
-                $attendee = self::_map_keys($params, array_flip($this->attendee_keymap));
+                $attendee = VObjectUtils::map_keys($params, array_flip($this->attendee_keymap));
                 $attendee['email'] = preg_replace('/^mailto:/i', '', $prop->value);
 
                 if ($prop->name == 'ORGANIZER') {
@@ -723,34 +815,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         return $event;
     }
 
-    /**
-     * Helper method to correctly interpret an all-day date value
-     */
-    private static function _convert_datetime($prop)
-    {
-        if (empty($prop)) {
-            return null;
-        }
-        else if ($prop instanceof VObject\Property\MultiDateTime) {
-            $dt = array();
-            $dateonly = ($prop->getDateType() & VObject\Property\DateTime::DATE);
-            foreach ($prop->getDateTimes() as $item) {
-                $item->_dateonly = $dateonly;
-                $dt[] = $item;
-            }
-        }
-        else if ($prop instanceof VObject\Property\DateTime) {
-            $dt = $prop->getDateTime();
-            if ($prop->getDateType() & VObject\Property\DateTime::DATE) {
-                $dt->_dateonly = true;
-            }
-        }
-        else if ($prop instanceof \DateTime) {
-            $dt = $prop;
-        }
-
-        return $dt;
-    }
 
     /**
      * Build a valid iCal format block from the given event
@@ -767,12 +831,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $ve->add('UID', $event['uid']);
 
         if (!empty($event['created']))
-            $ve->add(self::_datetime_prop('CREATED', $event['created'], true));
+            $ve->add(VObjectUtils::datetime_prop('CREATED', $event['created'], true));
         if (!empty($event['changed']))
-            $ve->add(self::_datetime_prop('DTSTAMP', $event['changed'], true));
+            $ve->add(VObjectUtils::datetime_prop('DTSTAMP', $event['changed'], true));
 
-        $ve->add(self::_datetime_prop('DTSTART', $event['start'], false));
-        $ve->add(self::_datetime_prop('DTEND',   $event['end'], false));
+        $ve->add(VObjectUtils::datetime_prop('DTSTART', $event['start'], false));
+        $ve->add(VObjectUtils::datetime_prop('DTEND',   $event['end'], false));
 
         if ($recurrence_id)
             $ve->add($recurrence_id);
@@ -837,12 +901,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         if ($event['organizer']) {
             unset($event['organizer']['rsvp']);
-            $ve->add('ORGANIZER', 'mailto:' . $event['organizer']['email'], self::_map_keys($event['organizer'], $this->attendee_keymap));
+            $ve->add('ORGANIZER', 'mailto:' . $event['organizer']['email'], VObjectUtils::map_keys($event['organizer'], $this->attendee_keymap));
         }
 
         foreach ((array)$event['attendees'] as $attendee) {
             $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
-            $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], self::_map_keys($attendee, $this->attendee_keymap));
+            $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], VObjectUtils::map_keys($attendee, $this->attendee_keymap));
         }
 
         foreach ((array)$event['links'] as $uri) {
@@ -870,7 +934,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
                 $exdate = clone $event['start'];
                 $exdate->setDate($ex['start']->format('Y'), $ex['start']->format('n'), $ex['start']->format('j'));
-                $recurrence_id = self::_datetime_prop('RECURRENCE-ID', $exdate);
+                $recurrence_id = VObjectUtils::datetime_prop('RECURRENCE-ID', $exdate);
                 // if ($ex['thisandfuture'])  // not supported by any client :-(
                 //    $recurrence_id->add('RANGE', 'THISANDFUTURE');
                 $vcal->add($this->_to_ical($ex, $recurrence_id));
@@ -879,32 +943,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
 
         return $vcal->serialize();
-    }
-
-    /**
-     * Create a Sabre\VObject\Property instance from a PHP DateTime object
-     *
-     * @param string Property name
-     * @param object DateTime
-     */
-    private static function _datetime_prop($name, $dt, $utc = false)
-    {
-        $vdt = new VObject\Property\DateTime($name);
-        $vdt->setDateTime($dt, $dt->_dateonly ? VObject\Property\DateTime::DATE : ($utc ? VObject\Property\DateTime::UTC : VObject\Property\DateTime::LOCALTZ));
-        return $vdt;
-    }
-
-    /**
-     * Copy values from one hash array to another using a key-map
-     */
-    private static function _map_keys($values, $map)
-    {
-        $out = array();
-        foreach ($map as $from => $to) {
-            if (isset($values[$from]))
-                $out[$to] = $values[$from];
-        }
-        return $out;
     }
 
 
@@ -918,4 +956,5 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         return sprintf('"%s-%d"', substr(md5($event['uid']), 0, 16), $event['_msguid']);
     }
+
 }
