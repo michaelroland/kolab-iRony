@@ -28,6 +28,7 @@ use \rcube;
 use \rcube_charset;
 use \kolab_storage;
 use \libcalendaring;
+use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
 use Sabre\CalDAV;
 use Sabre\VObject;
@@ -67,7 +68,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         asort($names, SORT_LOCALE_STRING);
 
         foreach ($names as $utf7name => $name) {
-            $id = urlencode($utf7name);
+            $id = DAVBackend::get_uid($folders[$utf7name]);
             $folder = $this->folders[$id] = $folders[$utf7name];
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->calendars[$id] = array(
@@ -104,8 +105,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             return $this->folders[$id];
         }
         else {
-            $storage = kolab_storage::get_folder(urldecode($id));
-            return !PEAR::isError($this->storage) ? $storage : null;
+            return DAVBackend::get_storage_folder($id, 'event');
         }
     }
 
@@ -169,7 +169,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         console(__METHOD__, $calendarUri, $properties);
 
         $props = array(
-            'name' => $calendarUri,
+            'name' => 'Untitled',
             'type' => 'event',
             'subscribed' => true
         );
@@ -177,7 +177,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         foreach ($properties as $prop => $val) {
             switch ($prop) {
                 case '{DAV:}displayname':
-                    // ignore for creating, URI is used
+                    $parts = explode('/', $val);
+                    $props['name'] = array_pop($parts);
+                    $props['parent'] = join('/', $parts);
                     break;
 
                 case '{http://apple.com/ns/ical/}calendar-color':
@@ -189,13 +191,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             }
         }
 
-        if (!empty($props['name']) && !kolab_storage::folder_update($props)) {
+        if (!empty($props['name']) && ($fname = kolab_storage::folder_update($props))) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
                 'file' => __FILE__, 'line' => __LINE__,
                 'message' => "Error creating a new calendar folder '$props[name]':" . kolab_storage::$last_error),
                 true, false);
             return false;
+        }
+
+        // save UID in folder annotations
+        if ($folder = kolab_storage::get_folder($fname)) {
+            DAVBackend::set_uid($folder, $calendarUri);
         }
     }
 
@@ -554,10 +561,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function calendarQuery($calendarId, array $filters)
     {
-      console(__METHOD__, $calendarId);
+      console(__METHOD__, $calendarId, $filters);
 
-      // TODO: build kolab storage query from $filters
+      // build kolab storage query from $filters
       $query = array();
+      foreach ((array)$filters['comp-filters'] as $filter) {
+          if ($filter['name'] != 'VEVENT')
+              continue;
+          if (is_array($filter['time-range'])) {
+              $query[] = array('dtstart', '<=', $filter['time-range']['end']);
+              $query[] = array('dtend',   '>=', $filter['time-range']['start']);
+          }
+      }
 
       $results = array();
       if ($storage = $this->get_storage_folder($calendarId)) {
@@ -846,7 +861,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         if ($event['location'])
             $ve->add('LOCATION', $event['location']);
         if ($event['description'])
-            $ve->add('DESCRIPTION', $event['description']);
+            $ve->add('DESCRIPTION', strtr($event['description'], array("\r\n" => "\n", "\r" => "\n")));
 
         if ($event['sequence'])
             $ve->add('SEQUENCE', $event['sequence']);

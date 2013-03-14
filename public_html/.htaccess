@@ -1,6 +1,6 @@
 RewriteEngine On
 
-RewriteBase /
+#RewriteBase /
 RewriteRule ^\.well-known/caldav   / [R,L]
 RewriteRule ^\.well-known/carddav  / [R,L]
 

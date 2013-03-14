@@ -1,7 +1,7 @@
 <?php
 
 /**
- * SabreDAV Calendar derived class to encapsulate a Kolab storage folder
+ * SabreDAV AddressBook derived class to encapsulate a Kolab storage folder
  *
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
@@ -21,19 +21,23 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-namespace Kolab\CalDAV;
+namespace Kolab\CardDAV;
 
 use \PEAR;
-use \kolab_storage;
-use Sabre\CalDAV\Backend;
+use Sabre\DAV;
+use Sabre\DAVACL;
+use Sabre\CardDAV\Backend;
 
 /**
- * This object represents a CalDAV calendar.
+ * The AddressBook class represents a CardDAV addressbook, owned by a specific user
  *
- * A calendar can contain multiple TODO and or Events. These are represented
- * as \Sabre\CalDAV\CalendarObject objects.
+ * The AddressBook can contain multiple vcards
+ *
+ * @copyright Copyright (C) 2007-2013 Rooftop Solutions. All rights reserved.
+ * @author Evert Pot (http://www.rooftopsolutions.nl/)
+ * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
  */
-class Calendar extends \Sabre\CalDAV\Calendar
+class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\IAddressBook, DAV\IProperties, DAVACL\IACL
 {
     public $id;
     public $storage;
@@ -41,15 +45,31 @@ class Calendar extends \Sabre\CalDAV\Calendar
 
 
     /**
-     * Default constructor
+     * Constructor
+     *
+     * @param Backend\BackendInterface $carddavBackend
+     * @param array $addressBookInfo
      */
-    public function __construct(Backend\BackendInterface $caldavBackend, $calendarInfo)
+    public function __construct(Backend\BackendInterface $carddavBackend, array $addressBookInfo)
     {
-        parent::__construct($caldavBackend, $calendarInfo);
+        parent::__construct($carddavBackend, $addressBookInfo);
 
-        $this->id = $calendarInfo['id'];
-        $this->storage = $caldavBackend->get_storage_folder($this->id);
+        $this->id = $addressBookInfo['id'];
+        $this->storage = $carddavBackend->get_storage_folder($this->id);
         $this->ready = is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder');
+    }
+
+
+    /**
+     * Renames the addressbook
+     *
+     * @param string $newName
+     * @return void
+     */
+    public function setName($newName)
+    {
+        // TODO: implement this
+        throw new DAV\Exception\MethodNotAllowed('Renaming addressbooks is not yet supported');
     }
 
 
@@ -63,21 +83,22 @@ class Calendar extends \Sabre\CalDAV\Calendar
     public function getOwner()
     {
         if ($this->storage->get_namespace() == 'personal') {
-            return $this->calendarInfo['principaluri'];
+            return $this->addressBookInfo['principaluri'];
         }
         else {
             return 'principals/' . $this->storage->get_owner();
         }
     }
 
-
     /**
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
-     *   - 'privilege', a string such as {DAV:}read or {DAV:}write. These are currently the only supported privileges
-     *   - 'principal', a url to the principal who owns the node
-     *   - 'protected' (optional), indicating that this ACE is not allowed to be updated.
+     *   * 'privilege', a string such as {DAV:}read or {DAV:}write. These are
+     *     currently the only supported privileges
+     *   * 'principal', a url to the principal who owns the node
+     *   * 'protected' (optional), indicating that this ACE is not allowed to
+     *      be updated.
      *
      * @return array
      */
@@ -90,7 +111,7 @@ class Calendar extends \Sabre\CalDAV\Calendar
             $acl = array(
                 array(
                     'privilege' => '{DAV:}read',
-                    'principal' => $this->calendarInfo['principaluri'],
+                    'principal' => $this->addressBookInfo['principaluri'],
                     'protected' => true,
                 ),
             );
@@ -101,7 +122,7 @@ class Calendar extends \Sabre\CalDAV\Calendar
             if ($is_owner || strpos($rights, 'i') !== false) {
                 $acl[] = array(
                     'privilege' => '{DAV:}write',
-                    'principal' => $this->calendarInfo['principaluri'],
+                    'principal' => $this->addressBookInfo['principaluri'],
                     'protected' => true,
                 );
             }
@@ -112,6 +133,20 @@ class Calendar extends \Sabre\CalDAV\Calendar
             // fallback to default ACL rules based on ownership
             return parent::getACL();
         }
+    }
+
+    /**
+     * Updates the ACL
+     *
+     * This method will receive a list of new ACE's.
+     *
+     * @param array $acl
+     * @return void
+     */
+    public function setACL(array $acl)
+    {
+        // TODO: implement this
+        throw new DAV\Exception\MethodNotAllowed('Changing ACL is not yet supported');
     }
 
 }

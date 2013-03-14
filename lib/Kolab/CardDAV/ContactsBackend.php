@@ -29,6 +29,7 @@ use \kolab_storage;
 use Sabre\DAV;
 use Sabre\CardDAV;
 use Sabre\VObject;
+use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
 
 /**
@@ -66,17 +67,16 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         asort($names, SORT_LOCALE_STRING);
 
         foreach ($names as $utf7name => $name) {
-            $id = urlencode($utf7name);
+            $id = DAVBackend::get_uid($folders[$utf7name]);
             $folder = $this->folders[$id] = $folders[$utf7name];
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->sources[$id] = array(
                 'id' => $id,
                 'uri' => $id,
                 '{DAV:}displayname' => $name,
-                '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], time(), $fdata['UIDNEXT']),
+                '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
             );
-
         }
 
         return $this->sources;
@@ -95,8 +95,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return $this->folders[$id];
         }
         else {
-            $storage = kolab_storage::get_folder(urldecode($id));
-            return !PEAR::isError($this->storage) ? $storage : null;
+            return DAVBackend::get_storage_folder($id, 'contact');
         }
     }
 
@@ -109,6 +108,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function getAddressBooksForUser($principalUri)
     {
+        console(__METHOD__, $principalUri);
+
         $this->_read_sources();
 
         $addressBooks = array();
@@ -134,6 +135,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function updateAddressBook($addressBookId, array $mutations)
     {
+        console(__METHOD__, $addressBookId, $mutations);
+
         // TODO: implement this
         return false;
     }
@@ -148,6 +151,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function createAddressBook($principalUri, $url, array $properties)
     {
+        console(__METHOD__, $principalUri, $url, $properties);
+
         // TODO: implement this
     }
 
@@ -159,6 +164,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function deleteAddressBook($addressBookId)
     {
+        console(__METHOD__, $addressBookId);
+
         // TODO: implement this
     }
 
@@ -191,7 +198,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     'id' => $contact['uid'],
                     'uri' => $contact['uid'] . '.vcf',
                     'lastmodified' => $contact['changed']->format('U'),
-//                    'calendarid' => $addressbookId,
                     'etag' => self::_get_etag($contact),
                     'size' => $contact['_size'],
                 );
@@ -223,7 +229,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'id' => $contact['uid'],
                 'uri' => $contact['uid'] . '.vcf',
                 'lastmodified' => $contact['changed']->format('U'),
-//                'calendarid' => $calendarId,
                 'carddata' => $this->_to_vcard($contact),
                 'etag' => self::_get_etag($contact),
             );
@@ -703,7 +708,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     private static function _get_etag($contact)
     {
-        return sprintf('"%s-%d"', substr(md5($contact['uid']), 0, 16), time(), $contact['_msguid']);
+        return sprintf('"%s-%d"', substr(md5($contact['uid']), 0, 16), $contact['_msguid']);
     }
 
 }

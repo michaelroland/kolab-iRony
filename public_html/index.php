@@ -105,7 +105,7 @@ $nodes = array(
     // /calendars
     new \Kolab\CalDAV\CalendarRootNode($principal_backend, $caldav_backend),
     // /addressbook
-    new \Sabre\CardDAV\AddressBookRoot($principal_backend, $carddav_backend),
+    new \Kolab\CardDAV\AddressBookRoot($principal_backend, $carddav_backend),
 );
 
 // the object tree needs in turn to be passed to the server class
@@ -114,9 +114,9 @@ $server->setBaseUri($base_uri);
 
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
-$server->addPlugin(new \Sabre\DAVACL\Plugin());  // we'll add that later
+$server->addPlugin(new \Sabre\DAVACL\Plugin());
 $server->addPlugin(new \Kolab\CalDAV\Plugin());
-$server->addPlugin(new \Sabre\CardDAV\Plugin());
+$server->addPlugin(new \Kolab\CardDAV\Plugin());
 $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 
 // finally, process the request

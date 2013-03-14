@@ -26,6 +26,7 @@ namespace Kolab\CalDAV;
 use Sabre\DAV;
 use Sabre\DAVACL;
 use Sabre\CalDAV\Backend;
+use Sabre\CalDAV\Schedule;
 use Kolab\CalDAV\Calendar;
 
 /**
@@ -34,102 +35,6 @@ use Kolab\CalDAV\Calendar;
  */
 class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtendedCollection, DAVACL\IACL
 {
-    /**
-     * CalDAV backend
-     *
-     * @var Sabre\CalDAV\Backend\BackendInterface
-     */
-    protected $caldavBackend;
-
-    /**
-     * Principal information
-     *
-     * @var array
-     */
-    protected $principalInfo;
-
-    /**
-     * Constructor
-     *
-     * @param Backend\BackendInterface $caldavBackend
-     * @param mixed $userUri
-     */
-    public function __construct(\Sabre\CalDAV\Backend\BackendInterface $caldavBackend, $principalInfo)
-    {
-        $this->caldavBackend = $caldavBackend;
-        $this->principalInfo = $principalInfo;
-    }
-
-    /**
-     * Returns the name of this object
-     *
-     * @return string
-     */
-    public function getName()
-    {
-        list(,$name) = DAV\URLUtil::splitPath($this->principalInfo['uri']);
-        return $name;
-    }
-
-    /**
-     * Updates the name of this object
-     *
-     * @param string $name
-     * @return void
-     */
-    public function setName($name)
-    {
-        // TODO: implement this
-        throw new DAV\Exception\Forbidden();
-    }
-
-    /**
-     * Deletes this object
-     *
-     * @return void
-     */
-    public function delete()
-    {
-        // TODO: implement this
-        throw new DAV\Exception\Forbidden();
-    }
-
-    /**
-     * Returns the last modification date
-     *
-     * @return int
-     */
-    public function getLastModified()
-    {
-        return null;
-    }
-
-    /**
-     * Creates a new file under this object.
-     *
-     * This is currently not allowed
-     *
-     * @param string $filename
-     * @param resource $data
-     * @return void
-     */
-    public function createFile($filename, $data=null)
-    {
-        throw new DAV\Exception\MethodNotAllowed('Creating new files in this collection is not supported');
-    }
-
-    /**
-     * Creates a new directory under this object.
-     *
-     * @param string $filename
-     * @return void
-     */
-    public function createDirectory($filename)
-    {
-        // TODO: implement this
-        throw new DAV\Exception\MethodNotAllowed('Creating new collections in this collection is not supported');
-    }
-
     /**
      * Returns a list of calendars
      *
@@ -154,67 +59,15 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
             }
         }
 
+        // add support for scheduling AKA free/busy
+        $objs[] = new Schedule\Outbox($this->principalInfo['uri']);
+
         // TODO: add notification support (check with clients first, if anybody supports it)
         if ($this->caldavBackend instanceof Backend\NotificationSupport) {
             $objs[] = new Notifications\Collection($this->caldavBackend, $this->principalInfo['uri']);
         }
 
         return $objs;
-    }
-
-    /**
-     * Creates a new calendar
-     *
-     * @param string $name
-     * @param array $resourceType
-     * @param array $properties
-     * @return void
-     */
-    public function createExtendedCollection($name, array $resourceType, array $properties)
-    {
-        $isCalendar = false;
-        foreach($resourceType as $rt) {
-            switch ($rt) {
-                case '{DAV:}collection' :
-                case '{http://calendarserver.org/ns/}shared-owner' :
-                    // ignore
-                    break;
-                case '{urn:ietf:params:xml:ns:caldav}calendar' :
-                    $isCalendar = true;
-                    break;
-                default :
-                    throw new DAV\Exception\InvalidResourceType('Unknown resourceType: ' . $rt);
-            }
-        }
-        if (!$isCalendar) {
-            throw new DAV\Exception\InvalidResourceType('You can only create calendars in this collection');
-        }
-
-        $this->caldavBackend->createCalendar($this->principalInfo['uri'], $name, $properties);
-    }
-
-    /**
-     * Returns the owner principal
-     *
-     * This must be a url to a principal, or null if there's no owner
-     *
-     * @return string|null
-     */
-    public function getOwner()
-    {
-        return $this->principalInfo['uri'];
-    }
-
-    /**
-     * Returns a group principal
-     *
-     * This must be a url to a principal, or null if there's no owner
-     *
-     * @return string|null
-     */
-    public function getGroup()
-    {
-        return null;
     }
 
     /**
@@ -273,46 +126,6 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
     {
         // TODO: implement this
         throw new DAV\Exception\MethodNotAllowed('Changing ACL is not yet supported');
-    }
-
-    /**
-     * Returns the list of supported privileges for this node.
-     *
-     * The returned data structure is a list of nested privileges.
-     * See Sabre\DAVACL\Plugin::getDefaultSupportedPrivilegeSet for a simple
-     * standard structure.
-     *
-     * If null is returned from this method, the default privilege set is used,
-     * which is fine for most common usecases.
-     *
-     * @return array|null
-     */
-    public function getSupportedPrivilegeSet()
-    {
-        // TODO: implement this
-        return null;
-    }
-
-    /**
-     * This method is called when a user replied to a request to share.
-     *
-     * This method should return the url of the newly created calendar if the
-     * share was accepted.
-     *
-     * @param string href The sharee who is replying (often a mailto: address)
-     * @param int status One of the SharingPlugin::STATUS_* constants
-     * @param string $calendarUri The url to the calendar thats being shared
-     * @param string $inReplyTo The unique id this message is a response to
-     * @param string $summary A description of the reply
-     * @return null|string
-     */
-    public function shareReply($href, $status, $calendarUri, $inReplyTo, $summary = null)
-    {
-        if (!$this->caldavBackend instanceof Backend\SharingSupport) {
-            throw new DAV\Exception\NotImplemented('Sharing support is not implemented by this backend.');
-        }
-
-        return $this->caldavBackend->shareReply($href, $status, $calendarUri, $inReplyTo, $summary);
     }
 
 }

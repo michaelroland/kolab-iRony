@@ -1,10 +1,10 @@
 INTALLATION PROCEDURE
 =====================
 
-This package uses [Composer][1] to install and maintain
-required PHP libraries as well as the Roundcube framework. The requirements
-are basically the same as for Roundcube so please read the INSTALLATION
-section in the Roundcube framework's [README][2] file.
+This package uses [Composer][1] to install and maintain required PHP libraries
+as well as the Roundcube framework. The requirements are basically the same as
+for Roundcube so please read the INSTALLATION section in the Roundcube
+framework's [README][2] file.
 
 1. Install Composer
 

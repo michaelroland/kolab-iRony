@@ -121,4 +121,37 @@ class Plugin extends CalDAV\Plugin
             throw new DAV\Exception\BadRequest('iCalendar object must contain at least 1 of VEVENT, VTODO or VJOURNAL');
     }
 
+    /**
+     * Returns free-busy information for a specific address. The returned
+     * data is an array containing the following properties:
+     *
+     * calendar-data : A VFREEBUSY VObject
+     * request-status : an iTip status code.
+     * href: The principal's email address, as requested
+     *
+     * @param string $email address
+     * @param \DateTime $start
+     * @param \DateTime $end
+     * @param VObject\Component $request
+     * @return array
+     */
+    protected function getFreeBusyForEmail($email, \DateTime $start, \DateTime $end, VObject\Component $request)
+    {
+        return parent::getFreeBusyForEmail($email, $start, $end, $request);
+
+        // TODO: pass-through the pre-generatd free/busy feed from Kolab's free/busy service
+
+        // not found:
+        return array(
+            'request-status' => '3.7;Could not find principal',
+            'href' => 'mailto:' . $email,
+        );
+
+        // success_
+        return array(
+            'calendar-data' => $fbdata,
+            'request-status' => '2.0;Success',
+            'href' => 'mailto:' . $email,
+        );
+    }
 }

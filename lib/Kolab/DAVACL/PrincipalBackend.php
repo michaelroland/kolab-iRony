@@ -46,7 +46,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      */
     public function getCurrentUser()
     {
-        console(__METHOD__, HTTPBasic::$current_user);
+        // console(__METHOD__, HTTPBasic::$current_user);
 
         if (HTTPBasic::$current_user) {
             $user_email = rcube::get_instance()->get_user_email();
@@ -106,7 +106,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      */
     public function getPrincipalByPath($path)
     {
-        console(__METHOD__, $path);
+        // console(__METHOD__, $path);
 
         list($prefix,$name) = explode('/', $path);
 
@@ -183,9 +183,61 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         return 0;
     }
 
+    /**
+     * This method is used to search for principals matching a set of
+     * properties.
+     *
+     * This search is specifically used by RFC3744's principal-property-search
+     * REPORT. You should at least allow searching on
+     * http://sabredav.org/ns}email-address.
+     *
+     * The actual search should be a unicode-non-case-sensitive search. The
+     * keys in searchProperties are the WebDAV property names, while the values
+     * are the property values to search on.
+     *
+     * If multiple properties are being searched on, the search should be
+     * AND'ed.
+     *
+     * This method should simply return an array with full principal uri's.
+     *
+     * If somebody attempted to search on a property the backend does not
+     * support, you should simply return 0 results.
+     *
+     * @param string $prefixPath
+     * @param array $searchProperties
+     * @return array
+     */
     function searchPrincipals($prefixPath, array $searchProperties)
     {
-        return 0;
+        console(__METHOD__, $prefixPath, $searchProperties);
+
+        $email = null;
+        $results = array();
+        $current_user = $this->getCurrentUser();
+        foreach($searchProperties as $property => $value) {
+            // check search property against the current user
+            if ($current_user[$property] == $value) {
+                $results[] = $current_user['uri'];
+                continue;
+            }
+            switch($property) {
+                case '{http://sabredav.org/ns}email-address':
+                    $email = $value;
+                    break;
+
+                case '{DAV:}displayname':
+                default :
+                    // Unsupported property
+                    return array();
+            }
+        }
+
+        // we only support search by email
+        if (!empty($email)) {
+            // TODO: search via LDAP
+        }
+
+        return array_unique($results);
     }
 
 }
