@@ -30,10 +30,6 @@ use Sabre\DAVACL;
  * UserAddressBooks class
  *
  * The UserAddressBooks collection contains a list of addressbooks associated with a user
- *
- * @copyright Copyright (C) 2007-2013 Rooftop Solutions. All rights reserved.
- * @author Evert Pot (http://www.rooftopsolutions.nl/) 
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
  */
 class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IExtendedCollection, DAVACL\IACL
 {

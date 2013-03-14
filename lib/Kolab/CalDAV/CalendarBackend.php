@@ -861,7 +861,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         if ($event['location'])
             $ve->add('LOCATION', $event['location']);
         if ($event['description'])
-            $ve->add('DESCRIPTION', strtr($event['description'], array("\r\n" => "\n", "\r" => "\n")));
+            $ve->add('DESCRIPTION', strtr($event['description'], array("\r\n" => "\n", "\r" => "\n"))); // normalize line endings
 
         if ($event['sequence'])
             $ve->add('SEQUENCE', $event['sequence']);

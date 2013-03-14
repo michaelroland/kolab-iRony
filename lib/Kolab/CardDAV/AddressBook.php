@@ -31,11 +31,6 @@ use Sabre\CardDAV\Backend;
 /**
  * The AddressBook class represents a CardDAV addressbook, owned by a specific user
  *
- * The AddressBook can contain multiple vcards
- *
- * @copyright Copyright (C) 2007-2013 Rooftop Solutions. All rights reserved.
- * @author Evert Pot (http://www.rooftopsolutions.nl/)
- * @license http://code.google.com/p/sabredav/wiki/License Modified BSD License
  */
 class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\IAddressBook, DAV\IProperties, DAVACL\IACL
 {
