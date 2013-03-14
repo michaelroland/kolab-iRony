@@ -408,9 +408,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private function parse_vcard($cardData, $uid)
     {
         try {
-           VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
-
-            $vobject = VObject\Reader::read($cardData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+            // use already parsed object
+            if (Plugin::$parsed_vcard && Plugin::$parsed_vcard->UID == $uid) {
+                $vobject = Plugin::$parsed_vcard;
+            }
+            else {
+                VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
+                $vobject = VObject\Reader::read($cardData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+            }
 
             if ($vobject && $vobject->name == 'VCARD') {
                 $contact = $this->_to_array($vobject);
@@ -550,10 +555,17 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private function _to_array($vc)
     {
         $contact = array(
-            'uid'     => strval($vc->UID),
-            'name'   => strval($vc->FN),
-            'changed' => $vc->REV ? $vc->REV->getDateTime() : null,
+            'uid'  => strval($vc->UID),
+            'name' => strval($vc->FN),
         );
+
+        if ($vc->REV) {
+            try { $contact['changed'] = $vc->REV->getDateTime(); }
+            catch (\Exception $e) {
+                try { $contact['changed'] = new \DateTime(strval($vc->REV)); }
+                catch (\Exception $e) { }
+            }
+        }
 
         $phonetypemap = array_flip($this->phonetypes);
 
@@ -648,8 +660,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
                 case 'IMPP':
                     $type = strtolower((string)$prop->offsetGet('X-SERVICE-TYPE'));
-                    $protocol = $type ? ($this->improtocols[$type] ?: $type) . ':' : '';
-                    $contact['im'][] = $protocol . $prop->value;
+                    $protocol = $type && !preg_match('/^[a-z]+:/i', $prop->value) ? ($this->improtocols[$type] ?: $type) . ':' : '';
+                    $contact['im'][] = $protocol . urldecode($prop->value);
                     break;
 
                 case 'PHOTO':
@@ -669,6 +681,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
             }
         }
+
+        if (is_array($contact['im']))
+            $contact['im'] = array_unique($contact['im']);
 
         return $contact;
     }

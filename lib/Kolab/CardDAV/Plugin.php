@@ -56,6 +56,7 @@ class Plugin extends CardDAV\Plugin
         $data = DAV\StringUtil::ensureUTF8($data);
 
         try {
+            VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
             $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
 
             if ($vobj->name == 'VCARD')
