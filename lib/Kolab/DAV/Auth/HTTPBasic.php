@@ -33,8 +33,9 @@ use Kolab\Utils\CacheAPC;
  */
 class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
 {
-    // Make the current user name availabel to all classes
+    // Make the current user name available to all classes
     public static $current_user = null;
+    public static $current_pass = null;
 
     /**
      * Validates a username and password
@@ -87,12 +88,14 @@ class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
 
         if ($success) {
             self::$current_user = $auth['user'];
+            self::$current_pass = $password;
             if (!$auth_user) {
                 $cache->set($user, $auth['user']);
             }
 
             // register a rcube_user object for global access
             $rcube->user = new rcube_user(null, array('username' => $auth['user'], 'mail_host' => $auth['host']));
+            $_SESSION['imap_host'] = $auth['host'];
         }
 
         return $success;
