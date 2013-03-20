@@ -24,6 +24,7 @@
 namespace Kolab\Utils;
 
 use \kolab_storage;
+use \rcube_utils;
 
 /**
  *
@@ -86,5 +87,29 @@ class DAVBackend
 
         return $success;
     }
-    
+
+    /**
+     * Build an absolute URL with the given parameters
+     */
+    public static function abs_url($parts = array())
+    {
+        $schema = 'http';
+        $default_port = 80;
+        if (rcube_utils::https_check()) {
+            $schema = 'https';
+            $default_port = 443;
+        }
+        $url = $schema . '://' . $_SERVER['HTTP_HOST'];
+
+        if ($_SERVER['SERVER_PORT'] != $default_port)
+            $url .= ':' . $_SERVER['SERVER_PORT'];
+
+        if (dirname($_SERVER['SCRIPT_NAME']))
+            $url .= dirname($_SERVER['SCRIPT_NAME']);
+
+        $url .= join('/', array_map('urlencode', $parts));
+
+        return $url;
+    }
+
 }

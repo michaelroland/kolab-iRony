@@ -146,8 +146,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         $calendars = array();
         foreach ($this->calendars as $id => $cal) {
-            $cal['principaluri'] = $principalUri;
-            $calendars[] = $cal;
+            $this->calendars[$id]['principaluri'] = $principalUri;
+            $calendars[] = $this->calendars[$id];
         }
 
         return $calendars;
@@ -384,13 +384,38 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
 
+        // attachment content is requested
+        if (preg_match('!^(.+).ics:attachment:(\w+)$!', $objectUri, $m)) {
+            $uid = $m[1]; $part = $m[2];
+        }
+
         if ($storage && ($event = $storage->get_object($uid))) {
+            // deliver attachment content directly
+            if ($part && !empty($event['_attachments'])) {
+                foreach ($event['_attachments'] as $attachment) {
+                    if ($attachment['id'] == $part) {
+                        header('Content-Type: ' . $attachment['mimetype']);
+                        header('Content-Disposition: inline; filename="' . $attachment['name'] . '"');
+                        $storage->get_attachment($uid, $part, null, true);
+                        exit;
+                    }
+                }
+            }
+
+            $base_uri = DAVBackend::abs_url(array(
+                CalDAV\Plugin::CALENDAR_ROOT,
+                preg_replace('!principals/!', '', $this->calendars[$calendarId]['principaluri']),
+                $calendarId,
+                $event['uid'] . '.ics',
+            ));
+
+            // default response
             return array(
                 'id' => $event['uid'],
                 'uri' => $event['uid'] . '.ics',
                 'lastmodified' => $event['changed']->format('U'),
                 'calendarid' => $calendarId,
-                'calendardata' => $this->_to_ical($event),
+                'calendardata' => $this->_to_ical($event, $base_uri),
                 'etag' => self::_get_etag($event),
             );
         }
@@ -835,12 +860,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * Build a valid iCal format block from the given event
      *
      * @param array Hash array with event properties from libkolab
+     * @param string Absolute URI referenceing this event object
      * @param object RECURRENCE-ID property when serializing a recurrence exception
      * @return mixed VCALENDAR string containing the VEVENT data
      *    or VObject\VEvent object with a recurrence exception instance
      * @TODO: move this to libcalendaring for common use
      */
-    private function _to_ical($event, $recurrence_id = null)
+    private function _to_ical($event, $base_uri, $recurrence_id = null)
     {
         $ve = VObject\Component::create('VEVENT');
         $ve->add('UID', $event['uid']);
@@ -924,6 +950,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], VObjectUtils::map_keys($attendee, $this->attendee_keymap));
         }
 
+        // list attachments as absolute URIs
+        foreach ((array)$event['_attachments'] as $attachment) {
+            $ve->add('ATTACH', $base_uri . ':attachment:' . $attachment['id']);
+        }
+
         foreach ((array)$event['links'] as $uri) {
             $ve->add('ATTACH', $uri);
         }
@@ -952,7 +983,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 $recurrence_id = VObjectUtils::datetime_prop('RECURRENCE-ID', $exdate);
                 // if ($ex['thisandfuture'])  // not supported by any client :-(
                 //    $recurrence_id->add('RANGE', 'THISANDFUTURE');
-                $vcal->add($this->_to_ical($ex, $recurrence_id));
+                $vcal->add($this->_to_ical($ex, $base_uri, $recurrence_id));
             }
         }
 
