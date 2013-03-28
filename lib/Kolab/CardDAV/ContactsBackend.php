@@ -61,7 +61,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $names = array();
         foreach ($folders as $folder) {
             $folders[$folder->name] = $folder;
-            $names[$folder->name] = rcube_charset::convert($folder->name, 'UTF7-IMAP');
+            $names[$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);
         }
 
         asort($names, SORT_LOCALE_STRING);

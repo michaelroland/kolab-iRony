@@ -63,7 +63,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $names = array();
         foreach ($folders as $folder) {
             $folders[$folder->name] = $folder;
-            $names[$folder->name] = rcube_charset::convert($folder->name, 'UTF7-IMAP');
+            $names[$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);  // decode &raquo;
         }
 
         asort($names, SORT_LOCALE_STRING);
@@ -76,7 +76,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'id' => $id,
                 'uri' => $id,
                 '{DAV:}displayname' => $name,
-                '{http://apple.com/ns/ical/}calendar-color' => $this->get_color($folders[$utf7name]),
+                '{http://apple.com/ns/ical/}calendar-color' => $folder->get_color(),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
@@ -114,20 +114,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         else {
             return DAVBackend::get_storage_folder($id, 'event');
         }
-    }
-
-    /**
-     * Helper method to extract calendar color from metadata
-     */
-    private function get_color($folder)
-    {
-        // color is defined in folder METADATA
-        $metadata = $folder->get_metadata(array(kolab_storage::COLOR_KEY_PRIVATE, kolab_storage::COLOR_KEY_SHARED));
-        if (($color = $metadata[kolab_storage::COLOR_KEY_PRIVATE]) || ($color = $metadata[kolab_storage::COLOR_KEY_SHARED])) {
-            return '#' . $color;
-        }
-
-        return '';
     }
 
     /**
@@ -216,6 +202,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     $props['color'] = substr(trim($val, '#'), 0, 6);
                     break;
 
+                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
                 default:
                     // unsupported property
             }
@@ -291,15 +278,16 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                         $updates['parent'] = join('/', $parts);
                     }
                     else {
+                        //$updates['displayname'] = $val;
                         $errors[403][$prop] = null;
                     }
                     break;
 
                 case '{http://apple.com/ns/ical/}calendar-color':
-                    $updates['oldname'] = $folder->name;
                     $updates['color'] = substr(trim($val, '#'), 0, 6);
                     break;
 
+                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
                 default:
                     // unsupported property
                     $errors[403][$prop] = null;
@@ -308,11 +296,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         // execute folder update
         if (!empty($updates)) {
-            // 'name' and 'parent' properties are alwas required
+            // 'name' and 'parent' properties are always required
             if (empty($updates['name'])) {
                 $parts = explode('/', $folder->name);
                 $updates['name'] = rcube_charset::convert(array_pop($parts), 'UTF7-IMAP');
                 $updates['parent'] = join('/', $parts);
+                $updates['oldname'] = $folder->name;
             }
 
             if (!kolab_storage::folder_update($updates)) {
@@ -541,6 +530,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             if (!isset($object[$key]) && $key[0] == '_')
                 $object[$key] = $val;
         }
+
+        // TODO: remove attachments not listed anymore
 
         // save object
         $saved = $storage->save($object, 'event', $uid);
@@ -835,7 +826,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     $attendee['status'] = 'ACCEPTED';
                     $event['organizer'] = $attendee;
                 }
-                else {
+                else if ($attendee['email'] != $event['organizer']['email']) {
                     $event['attendees'][] = $attendee;
                 }
                 break;
@@ -971,11 +962,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         if ($event['organizer']) {
-            unset($event['organizer']['rsvp']);
+            unset($event['organizer']['rsvp'], $event['organizer']['role']);
             $ve->add('ORGANIZER', 'mailto:' . $event['organizer']['email'], VObjectUtils::map_keys($event['organizer'], $this->attendee_keymap));
         }
 
         foreach ((array)$event['attendees'] as $attendee) {
+            if ($event['organizer'] && $attendee['role'] == 'ORGANIZER')
+                continue;
             $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
             $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], VObjectUtils::map_keys($attendee, $this->attendee_keymap));
         }
