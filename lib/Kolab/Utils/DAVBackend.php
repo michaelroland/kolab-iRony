@@ -104,10 +104,10 @@ class DAVBackend
         if ($_SERVER['SERVER_PORT'] != $default_port)
             $url .= ':' . $_SERVER['SERVER_PORT'];
 
-        if (dirname($_SERVER['SCRIPT_NAME']))
+        if (dirname($_SERVER['SCRIPT_NAME']) != '/')
             $url .= dirname($_SERVER['SCRIPT_NAME']);
 
-        $url .= join('/', array_map('urlencode', $parts));
+        $url .= '/' . join('/', array_map('urlencode', $parts));
 
         return $url;
     }
