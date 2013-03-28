@@ -43,6 +43,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 {
     private $calendars;
     private $folders;
+    private $aliases;
     private $useragent;
 
     /**
@@ -56,7 +57,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         // get all folders that have "event" type
         $folders = kolab_storage::get_folders('event');
-        $this->calendars = $this->folders = array();
+        $this->calendars = $this->folders = $this->aliases = array();
 
         // convert to UTF8 and sort
         $names = array();
@@ -80,6 +81,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
             );
+            $this->aliases[$utf7name] = $id;
 
             // these properties are used for sahring supprt (not yet active)
             if (false && $folder->get_namespace() != 'personal') {
@@ -101,6 +103,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function get_storage_folder($id)
     {
+        // resolve alias name
+        if ($this->aliases[$id]) {
+            $id = $this->aliases[$id];
+        }
+
         if ($this->folders[$id]) {
             return $this->folders[$id];
         }
@@ -142,6 +149,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     public function getCalendarsForUser($principalUri)
     {
+        console(__METHOD__, $principalUri);
+
         $this->_read_calendars();
 
         $calendars = array();
@@ -151,6 +160,27 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         return $calendars;
+    }
+
+    /**
+     * Returns calendar properties for a specific node identified by name/uri
+     *
+     * @param string Node name/uri
+     * @return array Hash array with calendar properties or null if not found
+     */
+    public function getCalendarByName($calendarUri)
+    {
+        console(__METHOD__, $calendarUri);
+
+        $this->_read_calendars();
+        $id = $calendarUri;
+
+        // resolve aliases (calendar by folder name)
+        if ($this->aliases[$calendarUri]) {
+            $id = $this->aliases[$calendarUri];
+        }
+
+        return $this->calendars[$id];
     }
 
     /**
@@ -255,7 +285,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 case '{DAV:}displayname':
                     // restrict renaming to personal folders only
                     if ($folder->get_namespace() == 'personal') {
-                        $parts = explode('/', $val);
+                        $parts = preg_split('!(\s*/\s*|\s+[»:]\s+)!', $val);
                         $updates['oldname'] = $folder->name;
                         $updates['name'] = array_pop($parts);
                         $updates['parent'] = join('/', $parts);

@@ -71,6 +71,36 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
     }
 
     /**
+     * Returns a single calendar, by name
+     *
+     * @param string $name
+     * @return Calendar
+     */
+    public function getChild($name)
+    {
+        if ($calendar = $this->caldavBackend->getCalendarByName($name)) {
+            $calendar['principaluri'] = $this->principalInfo['uri'];
+            return new Calendar($this->caldavBackend, $calendar);
+        }
+
+        throw new DAV\Exception\NotFound('Calendar with name \'' . $name . '\' could not be found');
+    }
+
+    /**
+     * Checks if a calendar exists.
+     *
+     * @param string $name
+     * @return bool
+     */
+    public function childExists($name)
+    {
+        if ($this->caldavBackend->getCalendarByName($name)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
