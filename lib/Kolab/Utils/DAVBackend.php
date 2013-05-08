@@ -33,6 +33,7 @@ class DAVBackend
 {
     const IMAP_UID_KEY = '/shared/vendor/kolab/dav-uid';
     const IMAP_UID_KEY_PRIVATE = '/private/vendor/kolab/dav-uid';
+    const IMAP_UID_KEY_CYRUS = '/shared/vendor/cmu/cyrus-imapd/uniqueid';
 
     /**
      * Getter for a kolab_storage_folder with the given UID
@@ -60,9 +61,12 @@ class DAVBackend
     public static function get_uid($folder)
     {
         // color is defined in folder METADATA
-        $metadata = $folder->get_metadata(array(self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE));
-        if (($uid = $metadata[self::IMAP_UID_KEY]) || ($uid = $metadata[self::IMAP_UID_KEY_PRIVATE])) {
-            return $uid;
+        $metakeys = array(self::IMAP_UID_KEY_CYRUS, self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE);
+        $metadata = $folder->get_metadata($metakeys);
+        foreach ($metakeys as $key) {
+            if (($uid = $metadata[$key])) {
+                return $uid;
+            }
         }
 
         // generate a folder UID and set it to IMAP
@@ -81,8 +85,11 @@ class DAVBackend
      */
     public static function set_uid($folder, $uid)
     {
-        if (!($success = $folder->set_metadata(array(self::IMAP_UID_KEY => $uid)))) {
-            $success = $folder->set_metadata(array(self::IMAP_UID_KEY_PRIVATE => $uid));
+        $metakeys = array(self::IMAP_UID_KEY_CYRUS, self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE);
+        foreach ($metakeys as $key) {
+            if ($success = $folder->set_metadata(array($key => $uid))) {
+                break;
+            }
         }
 
         return $success;
