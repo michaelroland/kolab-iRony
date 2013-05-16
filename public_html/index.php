@@ -74,9 +74,10 @@ if ($debug = $rcube->config->get('kolab_dav_debug')) {
         $http_headers .= "$hdr: $value\n";
     }
     // read HTTP request body (with our own file handle)
-    #$in = fopen('php://input', 'r');
-    #while (!feof($in)) $http_body .= fread($in, 1024);
-    #fclose($in);
+#    $in = fopen('php://input', 'r');
+#    $http_body = stream_get_contents($in);
+#    fseek($in, 0);
+#    fclose($in);
 
     $rcube->write_log('davdebug', $http_headers . "\n" . $http_body . "\n");
     ob_start();  // turn on output buffering
@@ -115,8 +116,13 @@ $server->setBaseUri($base_uri);
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
-$server->addPlugin(new \Kolab\CalDAV\Plugin());
 $server->addPlugin(new \Kolab\CardDAV\Plugin());
+
+$caldav_plugin = new \Kolab\CalDAV\Plugin();
+$caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
+$server->addPlugin($caldav_plugin);
+
+// HTML UI for browser-based access (recommended only for development)
 $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 
 // finally, process the request

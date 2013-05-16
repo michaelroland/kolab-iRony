@@ -35,6 +35,8 @@ use Kolab\CalDAV\Calendar;
  */
 class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtendedCollection, DAVACL\IACL
 {
+    private $outbox;
+
     /**
      * Returns a list of calendars
      *
@@ -78,6 +80,9 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
      */
     public function getChild($name)
     {
+        if ($name == 'outbox') {
+            return new Schedule\Outbox($this->principalInfo['uri']);
+        }
         if ($calendar = $this->caldavBackend->getCalendarByName($name)) {
             $calendar['principaluri'] = $this->principalInfo['uri'];
             return new Calendar($this->caldavBackend, $calendar);

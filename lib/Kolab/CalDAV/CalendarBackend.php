@@ -790,6 +790,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
             case 'DESCRIPTION':
             case 'LOCATION':
+            case 'URL':
                 $event[strtolower($prop->name)] = $prop->value;
                 break;
 
@@ -986,6 +987,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     $base_uri . ':attachment:' . $attachment['id'] . ':' . urlencode($attachment['name']),
                     array('FMTTYPE' => $attachment['mimetype'], 'VALUE' => 'URI'));
             }
+        }
+
+        foreach ((array)$event['url'] as $url) {
+            $ve->add('URL', $url);
         }
 
         foreach ((array)$event['links'] as $uri) {

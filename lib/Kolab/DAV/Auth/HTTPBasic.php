@@ -88,7 +88,7 @@ class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
 
         if ($success) {
             self::$current_user = $auth['user'];
-            self::$current_pass = $password;
+            self::$current_pass = $rcube->password = $password;
             if (!$auth_user) {
                 $cache->set($user, $auth['user']);
             }
