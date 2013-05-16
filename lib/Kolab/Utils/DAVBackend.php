@@ -85,13 +85,9 @@ class DAVBackend
      */
     public static function set_uid($folder, $uid)
     {
-        $metakeys = array(self::IMAP_UID_KEY_CYRUS, self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE);
-        foreach ($metakeys as $key) {
-            if ($success = $folder->set_metadata(array($key => $uid))) {
-                break;
-            }
+        if (!($success = $folder->set_metadata(array(self::IMAP_UID_KEY => $uid)))) {
+            $success = $folder->set_metadata(array(self::IMAP_UID_KEY_PRIVATE => $uid));
         }
-
         return $success;
     }
 
