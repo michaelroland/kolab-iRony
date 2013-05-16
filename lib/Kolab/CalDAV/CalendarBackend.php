@@ -653,7 +653,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
     /**********  Data conversion utilities  ***********/
 
-    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE', 'rsvp' => 'RSVP');
+    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE', 'cutype' => 'CUTYPE', 'rsvp' => 'RSVP');
 
     /**
      * Parse the given iCal string into a hash array kolab_format_event can handle
