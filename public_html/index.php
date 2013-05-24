@@ -101,6 +101,8 @@ $caldav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
 // Build the directory tree
 // This is an array which contains the 'top-level' directories in the WebDAV server.
 $nodes = array(
+    // files
+    new \Kolab\DAV\Collection(\Kolab\DAV\Collection::ROOT_DIRECTORY),
     // /principals
     new \Sabre\CalDAV\Principal\Collection($principal_backend),
     // /calendars

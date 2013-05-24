@@ -18,10 +18,11 @@ This will create a file named composer.phar in the project directory.
 
 $ php composer.phar install
 
-3. Import the Roundcube framework and Kolab plugins
+3. Import the Roundcube Framework, Kolab plugins and Chwala
 
 3.1. Either copy or symlink the Roundcube framework package into lib/Roundcube
 3.2. Either copy or symlink the roundcubemail-plugins-kolab into lib/plugins
+3.3. Either copy or symlink the Chwala lib/ directory into lib/FileAPI
 
 4. Create local config
 
@@ -37,9 +38,10 @@ Edit the local config/dav.inc.php file according to your setup and taste.
 These settings override the default config options from the Roundcube
 configuration.
 
-5. Give write access for the webserver user to the 'log' folder:
+5. Give write access for the webserver user to the 'logs' and 'temp' folders:
 
 $ chown <www-user> logs
+$ chown <www-user> temp
 
 6. Configure your webserver to point to the 'public_html' directory of this
 package as document root.
