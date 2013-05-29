@@ -82,11 +82,39 @@ class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
             'pass' => $password,
         ));
 
+        // user already registered?
+        if ($user_object = rcube_user::query($auth['user'], $auth['host'])) {
+            $auth['user'] = $user_object->data['username'];
+        }
+
         // authenticate user against the IMAP server
         $imap = $rcube->get_storage();
         $success = $imap->connect($auth['host'], $auth['user'], $auth['pass'], $port, $ssl);
 
         if ($success) {
+            // No user in database, but IMAP auth works
+            if (!is_object($user_object)) {
+                if ($rcube->config->get('auto_create_user')) {
+                    // create a new user record
+                    $user_object = rcube_user::create($auth['user'], $auth['host']);
+
+                    if (!$user_object) {
+                        rcube::raise_error(array(
+                            'code' => 620, 'type' => 'php', 'file' => __FILE__, 'line' => __LINE__,
+                            'message' => "Failed to create a user record",
+                        ), true, false);
+                        return false;
+                    }
+                }
+                else {
+                    rcube::raise_error(array(
+                        'code' => 620, 'type' => 'php', 'file' => __FILE__, 'line' => __LINE__,
+                        'message' => "Access denied for new user $user. 'auto_create_user' is disabled",
+                    ), true, false);
+                    return false;
+                }
+            }
+
             self::$current_user = $auth['user'];
             self::$current_pass = $rcube->password = $password;
             if (!$auth_user) {
@@ -94,7 +122,7 @@ class HTTPBasic extends \Sabre\DAV\Auth\Backend\AbstractBasic
             }
 
             // register a rcube_user object for global access
-            $rcube->user = new rcube_user(null, array('username' => $auth['user'], 'mail_host' => $auth['host']));
+            $rcube->user = $user_object;
             $_SESSION['imap_host'] = $auth['host'];
         }
 
