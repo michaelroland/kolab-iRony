@@ -53,7 +53,7 @@ class CacheAPC
     /**
      * Private constructor
      */
-    private function CacheAPC($domain)
+    private function __construct($domain)
     {
         if (!empty($domain))
             $this->prefix = $domain . ':';
