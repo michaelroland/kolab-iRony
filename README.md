@@ -44,7 +44,17 @@ $ chown <www-user> logs
 $ chown <www-user> temp
 
 6. Configure your webserver to point to the 'public_html' directory of this
-package as document root.
+package as document root. Add following mod_rewrite configuration into
+virtual host config or .htaccess file:
+
+    RewriteEngine On
+    #RewriteBase /
+    RewriteRule ^\.well-known/caldav   / [R,L]
+    RewriteRule ^\.well-known/carddav  / [R,L]
+
+    RewriteCond  %{REQUEST_FILENAME}  !-f
+    RewriteCond  %{REQUEST_FILENAME}  !-d
+    RewriteRule  (.*)                 index.php  [qsappend,last]
 
 
 [1]: http://getcomposer.org
