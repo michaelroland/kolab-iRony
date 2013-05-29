@@ -33,3 +33,12 @@ $rcmail_config['kolab_dav_debug'] = false;
 // User agent string written to kolab storage MIME messages
 $rcmail_config['useragent'] = 'Kolab DAV Server libkolab/' . RCUBE_VERSION;
 
+// Roundcube plugins. Not all are supported here.
+$rcmail_config['kolabdav_plugins'] = array('kolab_auth');
+
+// Type of Auth cache. Supported values: 'db', 'apc' and 'memcache'.
+// Note: This is only for username canonification map.
+$rcmail_config['kolabdav_auth_cache'] = 'apc';
+
+// lifetime of the Auth cache, possible units: s, m, h, d, w
+$rcmail_config['kolabdav_auth_cache_ttl'] = '1h';

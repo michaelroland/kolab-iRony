@@ -60,8 +60,13 @@ require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
 // Roundcube framework initialization
 $rcube = rcube::get_instance(rcube::INIT_WITH_DB | rcube::INIT_WITH_PLUGINS);
 $rcube->config->load_from_file(RCUBE_CONFIG_DIR . 'dav.inc.php');
+
+// Load plugins
+$plugins  = (array)$rcube->config->get('kolabdav_plugins', array('kolab_auth'));
+$required = array('libkolab', 'libcalendaring');
+
 $rcube->plugins->init($rcube);
-$rcube->plugins->load_plugins(array('libkolab','libcalendaring'));
+$rcube->plugins->load_plugins($plugins, $required);
 
 // convenience function, you know it well :-)
 function console() { call_user_func_array(array('rcube', 'console'), func_get_args()); }
