@@ -15,7 +15,7 @@
 	],
 	"autoload": {
 		"psr-0": { "": "lib/" },
-		"classmap": [ "lib/Roundcube", "lib/FileAPI" ]
+		"classmap": [ "lib/FileAPI", "lib/Roundcube" ]
 	},
 	"require": {
 		"php": ">=5.3.3",
