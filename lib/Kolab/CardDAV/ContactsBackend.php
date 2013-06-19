@@ -57,23 +57,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $folders = kolab_storage::get_folders('contact');
         $this->sources = $this->folders = array();
 
-        // convert to UTF8 and sort
-        $names = array();
-        foreach ($folders as $folder) {
-            $folders[$folder->name] = $folder;
-            $names[$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);
-        }
-
-        asort($names, SORT_LOCALE_STRING);
-
-        foreach ($names as $utf7name => $name) {
-            $id = DAVBackend::get_uid($folders[$utf7name]);
-            $folder = $this->folders[$id] = $folders[$utf7name];
+        foreach (DAVBackend::sort_folders($folders) as $folder) {
+            $id = DAVBackend::get_uid($folder);
+            $this->folders[$id] = $folder;
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->sources[$id] = array(
                 'id' => $id,
                 'uri' => $id,
-                '{DAV:}displayname' => $name,
+                '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
             );
@@ -137,8 +128,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $mutations);
 
-        // TODO: implement this
-        return false;
+        $folder = $this->get_storage_folder($addressBookId);
+        return DAVBackend::folder_update($folder, $mutations);
     }
 
     /**
@@ -153,7 +144,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $principalUri, $url, $properties);
 
-        // TODO: implement this
+        return DAVBackend::folder_create('contact', $properties, $url);
     }
 
     /**
@@ -166,7 +157,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId);
 
-        // TODO: implement this
+        $folder = $this->get_storage_folder($addressBookId);
+        if ($folder && !kolab_storage::folder_delete($folder->name)) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error deleting calendar folder $folder->name"),
+                true, false);
+        }
     }
 
     /**

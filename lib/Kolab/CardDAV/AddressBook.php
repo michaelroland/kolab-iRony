@@ -51,7 +51,7 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
 
         $this->id = $addressBookInfo['id'];
         $this->storage = $carddavBackend->get_storage_folder($this->id);
-        $this->ready = is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder');
+        $this->ready = $this->id == '__all__' || (is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder'));
     }
 
 
@@ -77,7 +77,7 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
      */
     public function getOwner()
     {
-        if ($this->storage->get_namespace() == 'personal') {
+        if (!$this->storage || $this->storage->get_namespace() == 'personal') {
             return $this->addressBookInfo['principaluri'];
         }
         else {
@@ -100,7 +100,7 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
     public function getACL()
     {
         // return ACL information based on IMAP MYRIGHTS
-        $rights = $this->storage->get_myrights();
+        $rights = $this->storage ? $this->storage->get_myrights() : null;
         if ($rights && !PEAR::isError($rights)) {
             // user has at least read access to calendar folders listed
             $acl = array(

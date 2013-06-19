@@ -23,8 +23,10 @@
 
 namespace Kolab\Utils;
 
+use \rcube;
 use \kolab_storage;
 use \rcube_utils;
+use \rcube_charset;
 
 /**
  *
@@ -92,6 +94,35 @@ class DAVBackend
     }
 
     /**
+     * Sort the given list of kolab folders by namespace/name
+     *
+     * @param array List of kolab_storage_folder objects
+     * @return array Sorted list of folders
+     */
+    public static function sort_folders($folders)
+    {
+        $nsnames = array('personal' => array(), 'shared' => array(), 'other' => array());
+        foreach ($folders as $folder) {
+            $folders[$folder->name] = $folder;
+            $ns = $folder->get_namespace();
+            $nsnames[$ns][$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);  // decode &raquo;
+        }
+
+        $names = array();
+        foreach ($nsnames as $ns => $dummy) {
+            asort($nsnames[$ns], SORT_LOCALE_STRING);
+            $names += $nsnames[$ns];
+        }
+
+        $out = array();
+        foreach ($names as $utf7name => $name) {
+            $out[] = $folders[$utf7name];
+        }
+
+        return $out;
+    }
+
+    /**
      * Build an absolute URL with the given parameters
      */
     public static function abs_url($parts = array())
@@ -115,4 +146,129 @@ class DAVBackend
         return $url;
     }
 
+    /**
+     * Updates properties for a recourse (kolab folder)
+     *
+     * The mutations array uses the propertyName in clark-notation as key,
+     * and the array value for the property value. In the case a property
+     * should be deleted, the property value will be null.
+     *
+     * This method must be atomic. If one property cannot be changed, the
+     * entire operation must fail.
+     *
+     * If the operation was successful, true is returned.
+     * If the operation failed, detailed information about any
+     * failures is returned.
+     *
+     * @param object $folder kolab_storage_folder instance to operate on
+     * @param array $mutations Hash array with propeties to change
+     * @return bool|array
+     */
+    public static function folder_update($folder, array $mutations)
+    {
+        $errors = array();
+        $updates = array();
+
+        foreach ($mutations as $prop => $val) {
+            switch ($prop) {
+                case '{DAV:}displayname':
+                    // restrict renaming to personal folders only
+                    if ($folder->get_namespace() == 'personal') {
+                        $parts = preg_split('!(\s*/\s*|\s+[»:]\s+)!', $val);
+                        $updates['oldname'] = $folder->name;
+                        $updates['name'] = array_pop($parts);
+                        $updates['parent'] = join('/', $parts);
+                    }
+                    else {
+                        $updates['displayname'] = $val;
+                    }
+                    break;
+
+                case '{http://apple.com/ns/ical/}calendar-color':
+                    $updates['color'] = substr(trim($val, '#'), 0, 6);
+                    break;
+
+                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
+                default:
+                    // unsupported property
+                    $errors[403][$prop] = null;
+            }
+        }
+
+        // execute folder update
+        if (!empty($updates)) {
+            // 'name' and 'parent' properties are always required
+            if (empty($updates['name'])) {
+                $parts = explode('/', $folder->name);
+                $updates['name'] = rcube_charset::convert(array_pop($parts), 'UTF7-IMAP');
+                $updates['parent'] = join('/', $parts);
+                $updates['oldname'] = $folder->name;
+            }
+
+            if (!kolab_storage::folder_update($updates)) {
+                rcube::raise_error(array(
+                    'code' => 600, 'type' => 'php',
+                    'file' => __FILE__, 'line' => __LINE__,
+                    'message' => "Error updating properties for folder $folder->name:" . kolab_storage::$last_error),
+                    true, false);
+                return false;
+            }
+        }
+
+        return empty($errors) ? true : $errors;
+    }
+
+    /**
+     * Creates a new resource (i.e. IMAP folder) of a given type
+     *
+     * If the creation was a success, an id must be returned that can be used to reference
+     * this resource in other methods.
+     *
+     * @param array $properties
+     * @param string $type
+     * @param string $uid
+     * @return false|string
+     */
+    public function folder_create(string $type, array $properties, string $uid)
+    {
+        $props = array(
+            'type' => $type,
+            'name' => 'Untitled',
+            'subscribed' => true,
+        );
+
+        foreach ($properties as $prop => $val) {
+            switch ($prop) {
+                case '{DAV:}displayname':
+                    $parts = explode('/', $val);
+                    $props['name'] = array_pop($parts);
+                    $props['parent'] = join('/', $parts);
+                    break;
+
+                case '{http://apple.com/ns/ical/}calendar-color':
+                    $props['color'] = substr(trim($val, '#'), 0, 6);
+                    break;
+
+                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
+                default:
+                    // unsupported property
+            }
+        }
+
+        if (!empty($props['name']) && ($fname = kolab_storage::folder_update($props))) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Error creating a new calendar folder '$props[name]':" . kolab_storage::$last_error),
+                true, false);
+            return false;
+        }
+
+        // save UID in folder annotations
+        if ($folder = kolab_storage::get_folder($fname)) {
+            self::set_uid($folder, $uid);
+        }
+
+        return $uid;
+    }
 }

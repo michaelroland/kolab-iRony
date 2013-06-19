@@ -59,31 +59,22 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $folders = kolab_storage::get_folders('event');
         $this->calendars = $this->folders = $this->aliases = array();
 
-        // convert to UTF8 and sort
-        $names = array();
-        foreach ($folders as $folder) {
-            $folders[$folder->name] = $folder;
-            $names[$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);  // decode &raquo;
-        }
-
-        asort($names, SORT_LOCALE_STRING);
-
-        foreach ($names as $utf7name => $name) {
-            $id = DAVBackend::get_uid($folders[$utf7name]);
-            $folder = $this->folders[$id] = $folders[$utf7name];
+        foreach (DAVBackend::sort_folders($folders) as $folder) {
+            $id = DAVBackend::get_uid($folder);
+            $this->folders[$id] = $folder;
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->calendars[$id] = array(
                 'id' => $id,
                 'uri' => $id,
-                '{DAV:}displayname' => $name,
+                '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://apple.com/ns/ical/}calendar-color' => $folder->get_color(),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
             );
-            $this->aliases[$utf7name] = $id;
+            $this->aliases[$folder->name] = $id;
 
-            // these properties are used for sahring supprt (not yet active)
+            // these properties are used for sharing supprt (not yet active)
             if (false && $folder->get_namespace() != 'personal') {
                 $rights = $folder->get_myrights();
                 $this->calendars[$id]['{http://calendarserver.org/ns/}shared-url'] = '/calendars/' . $folder->get_owner() . '/' . $id;
@@ -184,43 +175,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarUri, $properties);
 
-        $props = array(
-            'name' => 'Untitled',
-            'type' => 'event',
-            'subscribed' => true
-        );
-
-        foreach ($properties as $prop => $val) {
-            switch ($prop) {
-                case '{DAV:}displayname':
-                    $parts = explode('/', $val);
-                    $props['name'] = array_pop($parts);
-                    $props['parent'] = join('/', $parts);
-                    break;
-
-                case '{http://apple.com/ns/ical/}calendar-color':
-                    $props['color'] = substr(trim($val, '#'), 0, 6);
-                    break;
-
-                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
-                default:
-                    // unsupported property
-            }
-        }
-
-        if (!empty($props['name']) && ($fname = kolab_storage::folder_update($props))) {
-            rcube::raise_error(array(
-                'code' => 600, 'type' => 'php',
-                'file' => __FILE__, 'line' => __LINE__,
-                'message' => "Error creating a new calendar folder '$props[name]':" . kolab_storage::$last_error),
-                true, false);
-            return false;
-        }
-
-        // save UID in folder annotations
-        if ($folder = kolab_storage::get_folder($fname)) {
-            DAVBackend::set_uid($folder, $calendarUri);
-        }
+        return DAVBackend::folder_create('event', $properties, $calendarUri);
     }
 
     /**
@@ -264,57 +219,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         console(__METHOD__, $calendarId, $mutations);
 
         $folder = $this->get_storage_folder($calendarId);
-        $errors = array();
-        $updates = array();
-
-        foreach ($mutations as $prop => $val) {
-            switch ($prop) {
-                case '{DAV:}displayname':
-                    // restrict renaming to personal folders only
-                    if ($folder->get_namespace() == 'personal') {
-                        $parts = preg_split('!(\s*/\s*|\s+[»:]\s+)!', $val);
-                        $updates['oldname'] = $folder->name;
-                        $updates['name'] = array_pop($parts);
-                        $updates['parent'] = join('/', $parts);
-                    }
-                    else {
-                        //$updates['displayname'] = $val;
-                        $errors[403][$prop] = null;
-                    }
-                    break;
-
-                case '{http://apple.com/ns/ical/}calendar-color':
-                    $updates['color'] = substr(trim($val, '#'), 0, 6);
-                    break;
-
-                case '{urn:ietf:params:xml:ns:caldav}calendar-description':
-                default:
-                    // unsupported property
-                    $errors[403][$prop] = null;
-            }
-        }
-
-        // execute folder update
-        if (!empty($updates)) {
-            // 'name' and 'parent' properties are always required
-            if (empty($updates['name'])) {
-                $parts = explode('/', $folder->name);
-                $updates['name'] = rcube_charset::convert(array_pop($parts), 'UTF7-IMAP');
-                $updates['parent'] = join('/', $parts);
-                $updates['oldname'] = $folder->name;
-            }
-
-            if (!kolab_storage::folder_update($updates)) {
-                rcube::raise_error(array(
-                    'code' => 600, 'type' => 'php',
-                    'file' => __FILE__, 'line' => __LINE__,
-                    'message' => "Error updating properties for folder $folder->name:" . kolab_storage::$last_error),
-                    true, false);
-                return false;
-            }
-        }
-
-        return empty($errors) ? true : $errors;
+        return DAVBackend::folder_update($folder, $mutations);
     }
 
     /**
