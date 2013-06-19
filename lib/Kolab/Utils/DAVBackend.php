@@ -31,8 +31,8 @@ use \rcube_utils;
  */
 class DAVBackend
 {
-    const IMAP_UID_KEY = '/shared/vendor/kolab/dav-uid';
-    const IMAP_UID_KEY_PRIVATE = '/private/vendor/kolab/dav-uid';
+    const IMAP_UID_KEY = '/shared/vendor/kolab/uniqueid';
+    const IMAP_UID_KEY_PRIVATE = '/private/vendor/kolab/uniqueid';
     const IMAP_UID_KEY_CYRUS = '/shared/vendor/cmu/cyrus-imapd/uniqueid';
 
     /**
@@ -60,8 +60,8 @@ class DAVBackend
      */
     public static function get_uid($folder)
     {
-        // color is defined in folder METADATA
-        $metakeys = array(self::IMAP_UID_KEY_CYRUS, self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE);
+        // UID is defined in folder METADATA
+        $metakeys = array(self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE, self::IMAP_UID_KEY_CYRUS);
         $metadata = $folder->get_metadata($metakeys);
         foreach ($metakeys as $key) {
             if (($uid = $metadata[$key])) {
@@ -70,7 +70,7 @@ class DAVBackend
         }
 
         // generate a folder UID and set it to IMAP
-        $uid = rtrim(chunk_split(md5($folder->name), 12, '-'), '-');
+        $uid = rtrim(chunk_split(md5($folder->name . $folder->get_owner()), 12, '-'), '-');
         self::set_uid($folder, $uid);
 
         return $uid;
