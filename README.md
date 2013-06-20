@@ -44,8 +44,10 @@ $ chown <www-user> logs
 $ chown <www-user> temp
 
 6. Configure your webserver to point to the 'public_html' directory of this
-package as document root. Add following mod_rewrite configuration into
-virtual host config or .htaccess file:
+package as document root. This is necessary because Apple's Address Book App
+expects the CardDAV server to run at the root of the host [3].
+
+Add following mod_rewrite configuration into virtual host config or .htaccess file:
 
     RewriteEngine On
     #RewriteBase /
@@ -59,3 +61,4 @@ virtual host config or .htaccess file:
 
 [1]: http://getcomposer.org
 [2]: https://github.com/roundcube/roundcubemail/blob/master/program/lib/Roundcube/README.md)
+[3]: https://code.google.com/p/sabredav/wiki/OSXAddressbook
