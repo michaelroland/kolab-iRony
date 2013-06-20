@@ -65,9 +65,11 @@ class Plugin extends CalDAV\Plugin
             // keep the parsed object in memory for later processing
             if ($vobj->name == 'VCALENDAR') {
                 self::$parsed_vcalendar = $vobj;
-                foreach ($vobj->getBaseComponents('VEVENT') as $vevent) {
-                    self::$parsed_vevent = $vevent;
-                    break;
+                foreach ($vobj->getBaseComponents() as $vevent) {
+                    if ($vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
+                        self::$parsed_vevent = $vevent;
+                        break;
+                    }
                 }
             }
         }

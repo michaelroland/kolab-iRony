@@ -30,6 +30,7 @@ use \kolab_storage;
 use \libcalendaring;
 use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
+use Sabre\DAV;
 use Sabre\CalDAV;
 use Sabre\VObject;
 
@@ -45,6 +46,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     private $folders;
     private $aliases;
     private $useragent;
+    private $type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
 
     /**
      * Read available calendar folders from server
@@ -56,7 +58,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             return $this->calendars;
 
         // get all folders that have "event" type
-        $folders = kolab_storage::get_folders('event');
+        $folders = array_merge(kolab_storage::get_folders('event'), kolab_storage::get_folders('task'));
         $this->calendars = $this->folders = $this->aliases = array();
 
         foreach (DAVBackend::sort_folders($folders) as $folder) {
@@ -69,7 +71,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://apple.com/ns/ical/}calendar-color' => $folder->get_color(),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
-                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array('VEVENT')),
+                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array($this->type_component_map[$folder->type])),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
             );
             $this->aliases[$folder->name] = $id;
@@ -373,15 +375,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $object = $this->parse_calendar_data($calendarData, $uid);
 
         if ($object['uid'] == $uid) {
-            $success = $storage->save($object, 'event');
+            $success = $storage->save($object, $object['_type']);
             if (!$success) {
                 rcube::raise_error(array(
                     'code' => 600, 'type' => 'php',
                     'file' => __FILE__, 'line' => __LINE__,
-                    'message' => "Error saving event object to Kolab server"),
+                    'message' => "Error saving $object[_type] object to Kolab server"),
                     true, false);
 
-                throw new DAV\Exception('Error saving event object to backend');
+                throw new DAV\Exception('Error saving calendar object to backend');
             }
         }
         else {
@@ -443,7 +445,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // TODO: remove attachments not listed anymore
 
         // save object
-        $saved = $storage->save($object, 'event', $uid);
+        $saved = $storage->save($object, $object['_type'], $uid);
         if (!$saved) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
@@ -581,15 +583,17 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             else {
                 $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
                 if ($vobject->name == 'VCALENDAR') {
-                    foreach ($vobject->getBaseComponents('VEVENT') as $ve) {
-                        $vevent = $ve;
-                        break;
+                    foreach ($vobject->getBaseComponents() as $ve) {
+                        if ($ve->name == 'VEVENT' || $ve->name == 'VTODO') {
+                            $vevent = $ve;
+                            break;
+                        }
                     }
                 }
             }
 
             // convert the VEvent object into a hash array
-            if ($vevent && $vevent->name == 'VEVENT') {
+            if ($vevent && $vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
                 $object = $this->_to_array($vevent);
                 if (!empty($object['uid'])) {
                     // parse recurrence exceptions
@@ -630,22 +634,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             'title'   => strval($ve->SUMMARY),
             'created' => $ve->CREATED ? $ve->CREATED->getDateTime() : null,
             'changed' => $ve->DTSTAMP->getDateTime(),
-            'start'   => VObjectUtils::convert_datetime($ve->DTSTART),
-            'end'     => VObjectUtils::convert_datetime($ve->DTEND),
+            '_type'   => $ve->name == 'VTODO' ? 'task' : 'event',
             // set defaults
             'free_busy' => 'busy',
             'priority' => 0,
             'attendees' => array(),
         );
-
-        // check for all-day dates
-        if ($event['start']->_dateonly) {
-            $event['allday'] = true;
-        }
-
-        if ($event['allday'] && is_object($event['end'])) {
-            $event['end']->sub(new \DateInterval('PT23H'));
-        }
 
         // map other attributes to internal fields
         $_attendees = array();
@@ -654,6 +648,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 continue;
 
             switch ($prop->name) {
+            case 'DTSTART':
+            case 'DTEND':
+            case 'DUE':
+                $propmap = array('DTSTART' => 'start', 'DTEND' => 'end', 'DUE' => 'due');
+                $event[$propmap[$prop->name]] =  VObjectUtils::convert_datetime($prop);
+                break;
+
             case 'TRANSP':
                 $event['free_busy'] = $prop->value == 'TRANSPARENT' ? 'free' : 'busy';
                 break;
@@ -661,8 +662,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             case 'STATUS':
                 if ($prop->value == 'TENTATIVE')
                     $event['free_busy'] = 'tentative';
-                else if ($prop->value == 'cancelled')
+                else if ($prop->value == 'CANCELLED')
                     $event['cancelled'] = true;
+                else if ($prop->value == 'COMPLETED')
+                    $event['complete'] = 100;
                 break;
 
             case 'PRIORITY':
@@ -693,8 +696,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 // $event['recurrence_id'] = VObjectUtils::convert_datetime($prop);
                 break;
 
+            case 'RELATED-TO':
+                if ($prop->offsetGet('RELTYPE') == 'PARENT') {
+                    $event['parent_id'] = $prop->value;
+                }
+                break;
+
             case 'SEQUENCE':
                 $event['sequence'] = intval($prop->value);
+                break;
+
+            case 'PERCENT-COMPLETE':
+                $event['complete'] = intval($prop->value);
                 break;
 
             case 'DESCRIPTION':
@@ -754,6 +767,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             }
         }
 
+        // check for all-day dates
+        if ($event['start']->_dateonly) {
+            $event['allday'] = true;
+        }
+
+        if ($event['allday'] && is_object($event['end'])) {
+            $event['end']->sub(new \DateInterval('PT23H'));
+        }
+
         // find alarms
         if ($valarms = $ve->select('VALARM')) {
             $action = 'DISPLAY';
@@ -790,7 +812,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     /**
      * Build a valid iCal format block from the given event
      *
-     * @param array Hash array with event properties from libkolab
+     * @param array Hash array with event/task properties from libkolab
      * @param string Absolute URI referenceing this event object
      * @param object RECURRENCE-ID property when serializing a recurrence exception
      * @return mixed VCALENDAR string containing the VEVENT data
@@ -799,16 +821,20 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     private function _to_ical($event, $base_uri, $storage, $recurrence_id = null)
     {
-        $ve = VObject\Component::create('VEVENT');
+        $type = $event['_type'] ?: 'event';
+        $ve = VObject\Component::create($this->type_component_map[$type]);
         $ve->add('UID', $event['uid']);
 
         if (!empty($event['created']))
             $ve->add(VObjectUtils::datetime_prop('CREATED', $event['created'], true));
         if (!empty($event['changed']))
             $ve->add(VObjectUtils::datetime_prop('DTSTAMP', $event['changed'], true));
-
-        $ve->add(VObjectUtils::datetime_prop('DTSTART', $event['start'], false));
-        $ve->add(VObjectUtils::datetime_prop('DTEND',   $event['end'], false));
+        if (!empty($event['start']))
+            $ve->add(VObjectUtils::datetime_prop('DTSTART', $event['start'], false));
+        if (!empty($event['end']))
+            $ve->add(VObjectUtils::datetime_prop('DTEND',   $event['end'], false));
+        if (!empty($event['due']))
+            $ve->add(VObjectUtils::datetime_prop('DUE',   $event['due'], false));
 
         if ($recurrence_id)
             $ve->add($recurrence_id);
@@ -858,9 +884,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $ve->add('STATUS', 'CANCELLED');
         else if ($event['free_busy'] == 'tentative')
             $ve->add('STATUS', 'TENTATIVE');
+        else if ($event['complete'] == 100)
+            $ve->add('STATUS', 'COMPLETED');
 
         if (!empty($event['sensitivity']))
             $ve->add('CLASS', strtoupper($event['sensitivity']));
+
+        if (isset($event['complete'])) {
+            $ve->add('PERCENT-COMPLETE', intval($event['complete']));
+            // Apple iCal required the COMPLETED date to be set in order to consider a task complete
+            if ($event['complete'] == 100)
+                $ve->add(VObjectUtils::datetime_prop('COMPLETED', $event['changed'] ?: new DateTime('now - 1 hour'), true));
+        }
 
         if ($event['alarms']) {
             $va = VObject\Component::create('VALARM');
@@ -904,6 +939,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         foreach ((array)$event['links'] as $uri) {
             $ve->add('ATTACH', $uri);
+        }
+
+        if (!empty($event['parent_id'])) {
+            $ve->add('RELATED-TO', $event['parent_id'], array('RELTYPE' => 'PARENT'));
         }
 
         // add custom properties
