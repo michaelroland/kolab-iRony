@@ -41,6 +41,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 {
     private $sources;
     private $folders;
+    private $aliases;
     private $useragent;
 
 
@@ -55,12 +56,12 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         // get all folders that have "contact" type
         $folders = kolab_storage::get_folders('contact');
-        $this->sources = $this->folders = array();
+        $this->sources = $this->folders = $this->aliases = array();
 
         foreach (DAVBackend::sort_folders($folders) as $folder) {
             $id = DAVBackend::get_uid($folder);
-            $this->folders[$id] = $folder;
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
+            $this->folders[$id] = $folder;
             $this->sources[$id] = array(
                 'id' => $id,
                 'uri' => $id,
@@ -68,6 +69,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
                 '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
             );
+            $this->aliases[$folder->name] = $id;
+
+            // map default folder to the magic 'all' resource
+            if ($folder->default)
+                $this->folders['__all__'] = $folder;
         }
 
         return $this->sources;
@@ -82,6 +88,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function get_storage_folder($id)
     {
+        // resolve alias name
+        if ($this->aliases[$id]) {
+            $id = $this->aliases[$id];
+        }
+
         if ($this->folders[$id]) {
             return $this->folders[$id];
         }
@@ -99,9 +110,26 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function getAddressBooksForUser($principalUri)
     {
-        console(__METHOD__, $principalUri);
+        console(__METHOD__, $principalUri, $this->useragent);
 
         $this->_read_sources();
+
+        // special case for the apple address book which only supports one (!) address book
+        if ($this->useragent == 'macosx' && count($this->sources) > 1) {
+            $ctags = array('f');
+            foreach ($this->sources as $source) {
+                $ctags[] = $source['{http://calendarserver.org/ns/}getctag'];
+            }
+
+            return array(array(
+                'id' => '__all__',
+                'uri' => '__all__',
+                '{DAV:}displayname' => 'All',
+                '{http://calendarserver.org/ns/}getctag' => join(':', $ctags),
+                '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
+                'principaluri' => $principalUri,
+            ));
+        }
 
         $addressBooks = array();
         foreach ($this->sources as $id => $source) {
@@ -112,6 +140,26 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         return $addressBooks;
     }
 
+    /**
+     * Returns properties for a specific node identified by name/uri
+     *
+     * @param string Node name/uri
+     * @return array Hash array with address book properties or null if not found
+     */
+    public function getAddressBookByName($addressBookUri)
+    {
+        console(__METHOD__, $addressBookUri);
+
+        $this->_read_sources();
+        $id = $addressBookUri;
+
+        // resolve aliases (calendar by folder name)
+        if ($this->aliases[$addressBookUri]) {
+            $id = $this->aliases[$addressBookUri];
+        }
+
+        return $this->sources[$id];
+    }
 
     /**
      * Updates an addressbook's properties
@@ -128,8 +176,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $mutations);
 
+        if ($addressBookId == '__all__')
+            return false;
+
         $folder = $this->get_storage_folder($addressBookId);
-        return DAVBackend::folder_update($folder, $mutations);
+        return $folder ? DAVBackend::folder_update($folder, $mutations) : false;
     }
 
     /**
@@ -157,6 +208,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId);
 
+        if ($addressBookId == '__all__')
+            return;
+
         $folder = $this->get_storage_folder($addressBookId);
         if ($folder && !kolab_storage::folder_delete($folder->name)) {
             rcube::raise_error(array(
@@ -181,16 +235,25 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      * calculating them. If they are specified, you can also ommit carddata.
      * This may speed up certain requests, especially with large cards.
      *
-     * @param mixed $addressbookId
+     * @param mixed $addressBookId
      * @return array
      */
-    public function getCards($addressbookId)
+    public function getCards($addressBookId)
     {
-        console(__METHOD__, $addressbookId);
+        console(__METHOD__, $addressBookId);
+
+        // recursively fetch contacts from all folders
+        if ($addressBookId == '__all__') {
+            $cards = array();
+            foreach ($this->sources as $id => $source) {
+                $cards = array_merge($cards, $this->getCards($id));
+            }
+            return $cards;
+        }
 
         $query = array();
         $cards = array();
-        if ($storage = $this->get_storage_folder($addressbookId)) {
+        if ($storage = $this->get_storage_folder($addressBookId)) {
             foreach ((array)$storage->select($query) as $contact) {
                 $cards[] = array(
                     'id' => $contact['uid'],
@@ -220,9 +283,19 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         console(__METHOD__, $addressBookId, $cardUri);
 
         $uid = basename($cardUri, '.vcf');
-        $storage = $this->get_storage_folder($addressBookId);
 
-        if ($storage && ($contact = $storage->get_object($uid))) {
+        // search all folders for the given card
+        if ($addressBookId == '__all__') {
+            $contact = $this->get_card_by_uid($uid, $storage);
+        }
+        else {
+            $storage = $this->get_storage_folder($addressBookId);
+            $contact = $storage->get_object($uid);
+        }
+
+        if ($contact) {
+            $rights = $this->storage ? $this->storage->get_myrights() : null;
+
             return array(
                 'id' => $contact['uid'],
                 'uri' => $contact['uid'] . '.vcf',
@@ -260,7 +333,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function createCard($addressBookId, $cardUri, $cardData)
     {
-        console(__METHOD__, $addressbookId, $cardUri, $cardData);
+        console(__METHOD__, $addressBookId, $cardUri, $cardData);
 
         $uid = basename($cardUri, '.vcf');
         $storage = $this->get_storage_folder($addressBookId);
@@ -310,10 +383,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function updateCard($addressBookId, $cardUri, $cardData)
     {
-        console(__METHOD__, $addressbookId, $cardUri, $cardData);
+        console(__METHOD__, $addressBookId, $cardUri, $cardData);
 
         $uid = basename($cardUri, '.vcf');
-        $storage = $this->get_storage_folder($addressBookId);
         $object = $this->parse_vcard($cardData, $uid);
 
         // sanity check
@@ -327,8 +399,28 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return null;
         }
 
+        if ($addressBookId == '__all__') {
+            $old = $this->get_card_by_uid($uid, $storage);
+        }
+        else {
+            if ($storage = $this->get_storage_folder($addressBookId))
+                $old = $storage->get_object($uid);
+        }
+
+        if (!$storage) {
+            rcube::raise_error(array(
+                'code' => 600, 'type' => 'php',
+                'file' => __FILE__, 'line' => __LINE__,
+                'message' => "Unable to find storage folder for contact $addressBookId/$cardUri"),
+                true, false);
+            return null;
+        }
+
+        if (!$this->is_writeable($storage)) {
+            throw new DAV\Exception\MethodNotAllowed('Insufficient privileges to update this card');
+        }
+
         // copy meta data (starting with _) from old object
-        $old = $storage->get_object($uid);
         foreach ((array)$old as $key => $val) {
             if (!isset($object[$key]) && $key[0] == '_')
                 $object[$key] = $val;
@@ -359,7 +451,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function deleteCard($addressBookId, $cardUri)
     {
-        console(__METHOD__, $addressbookId, $cardUri);
+        console(__METHOD__, $addressBookId, $cardUri);
         // TODO: implement this
     }
 
@@ -371,6 +463,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         $ua_classes = array(
             'thunderbird' => 'Thunderbird/\d',
+            'macosx'      => 'AddressBook/\d.+\sCardDAVPlugin',
         );
 
         foreach ($ua_classes as $class => $regex) {
@@ -379,6 +472,35 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 break;
             }
         }
+    }
+
+
+    /**
+     * Find an object and the containing folder by UID
+     *
+     * @param string Object UID
+     * @param object Return parameter for the kolab_storage_folder instance
+     * @return array|false
+     */
+    private function get_card_by_uid($uid, &$storage)
+    {
+        $obj = kolab_storage::get_object($uid, 'contact');
+        if ($obj) {
+            $storage = kolab_storage::get_folder($obj['_mbox']);
+            return $obj;
+        }
+
+        return false;
+    }
+
+    /**
+     * Internal helper method to determine whether the given kolab_storage_folder is writeable
+     *
+     */
+    private function is_writeable($storage)
+    {
+        $rights = $storage->get_myrights();
+        return (strpos($rights, 'i') !== false || $storage->get_namespace() == 'personal');
     }
 
 

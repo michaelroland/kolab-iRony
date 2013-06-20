@@ -112,7 +112,7 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
             );
 
             $owner = $this->getOwner();
-            $is_owner = $owner == $this->calendarInfo['principaluri'];
+            $is_owner = $owner == $this->addressBookInfo['principaluri'];
 
             if ($is_owner || strpos($rights, 'i') !== false) {
                 $acl[] = array(

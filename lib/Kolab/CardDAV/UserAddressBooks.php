@@ -48,4 +48,20 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         return $objs;
     }
 
+    /**
+     * Returns a single addressbook, by name
+     *
+     * @param string $name
+     * @return \AddressBook
+     */
+    public function getChild($name)
+    {
+        if ($addressbook = $this->carddavBackend->getAddressBookByName($name)) {
+            $addressbook['principaluri'] = $this->principalUri;
+            return new AddressBook($this->carddavBackend, $addressbook);
+        }
+
+        throw new DAV\Exception\NotFound('Addressbook with name \'' . $name . '\' could not be found');
+    }
+
 }
