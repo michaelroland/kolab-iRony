@@ -461,7 +461,25 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     public function deleteCard($addressBookId, $cardUri)
     {
         console(__METHOD__, $addressBookId, $cardUri);
-        // TODO: implement this
+
+        $uid = basename($cardUri, '.vcf');
+
+        if ($addressBookId == '__all__') {
+            $this->get_card_by_uid($uid, $storage);
+        }
+        else {
+            $storage = $this->get_storage_folder($addressBookId);
+        }
+
+        if (!$storage || !$this->is_writeable($storage)) {
+            throw new DAV\Exception\MethodNotAllowed('Insufficient privileges to delete this card');
+        }
+
+        if ($storage) {
+            return $storage->delete($uid);
+        }
+
+        return false;
     }
 
 
