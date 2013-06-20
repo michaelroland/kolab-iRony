@@ -95,6 +95,11 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      */
     public function getChild($name)
     {
+        // no support for hidden system files
+        if ($name[0] == '.') {
+            throw new \Sabre\DAV\Exception\NotFound('File not found: ' . $name);
+        }
+
         // @TODO: optimise this?
         foreach ($this->getChildren() as $child) {
             if ($child->getName() == $name) {
@@ -150,6 +155,11 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      */
     public function createFile($name, $data = null)
     {
+        // no support for hidden system files
+        if ($name[0] == '.') {
+            throw new \Sabre\DAV\Exception\Forbidden('Hidden files are not accepted');
+        }
+
         $filename = $this->path . '/' . $name;
         $filedata = $this->fileData($name, $data);
 
@@ -173,6 +183,11 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      */
     public function createDirectory($name)
     {
+        // no support for hidden system files
+        if ($name[0] == '.') {
+            throw new \Sabre\DAV\Exception\Forbidden('Hidden files are not accepted');
+        }
+
         $folder = $this->path . '/' . $name;
 
         try {
@@ -185,4 +200,5 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
         // reset cache
         $this->children = null;
     }
+
 }

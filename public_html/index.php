@@ -129,6 +129,14 @@ $caldav_plugin = new \Kolab\CalDAV\Plugin();
 $caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
 $server->addPlugin($caldav_plugin);
 
+// the lock manager is reponsible for making sure users don't overwrite each others changes.
+// TODO: replace this with a class that manages locks in the Kolab backend
+$locks_backend = new \Sabre\DAV\Locks\Backend\File(KOLAB_DAV_ROOT . '/temp/locks');
+$server->addPlugin(new \Sabre\DAV\Locks\Plugin($locks_backend));
+
+// intercept some of the garbage files operation systems tend to generate when mounting a WebDAV share
+$server->addPlugin(new \Sabre\DAV\TemporaryFileFilterPlugin(KOLAB_DAV_ROOT . '/temp'));
+
 // HTML UI for browser-based access (recommended only for development)
 $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 
