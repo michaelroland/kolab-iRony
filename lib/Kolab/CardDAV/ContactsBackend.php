@@ -490,7 +490,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         $ua_classes = array(
             'thunderbird' => 'Thunderbird/\d',
-            'macosx'      => 'AddressBook/\d.+\sCardDAVPlugin',
+            'macosx'      => '(Mac OS X/.+)?AddressBook/\d(.+\sCardDAVPlugin)?',
         );
 
         foreach ($ua_classes as $class => $regex) {
