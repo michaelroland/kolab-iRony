@@ -73,7 +73,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
             // map default folder to the magic 'all' resource
             if ($folder->default)
-                $this->folders['__all__'] = $folder;
+                $this->aliases['__all__'] = $id;
         }
 
         return $this->sources;
@@ -116,19 +116,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         // special case for the apple address book which only supports one (!) address book
         if ($this->useragent == 'macosx' && count($this->sources) > 1) {
-            $ctags = array('f');
-            foreach ($this->sources as $source) {
-                $ctags[] = $source['{http://calendarserver.org/ns/}getctag'];
-            }
-
-            return array(array(
-                'id' => '__all__',
-                'uri' => '__all__',
-                '{DAV:}displayname' => 'All',
-                '{http://calendarserver.org/ns/}getctag' => join(':', $ctags),
-                '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
-                'principaluri' => $principalUri,
-            ));
+            $source = $this->getAddressBookByName('__all__');
+            $source['principaluri'] = $principalUri;
+            return array($source);
         }
 
         $addressBooks = array();
@@ -144,7 +134,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      * Returns properties for a specific node identified by name/uri
      *
      * @param string Node name/uri
-     * @return array Hash array with address book properties or null if not found
+     * @return array Hash array with addressbook properties or null if not found
      */
     public function getAddressBookByName($addressBookUri)
     {
@@ -153,7 +143,23 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $this->_read_sources();
         $id = $addressBookUri;
 
-        // resolve aliases (calendar by folder name)
+        // return the magic *single* address book for Apple's Address Book App
+        if ($id == '__all__') {
+            $ctags = array();
+            foreach ($this->sources as $source) {
+                $ctags[] = $source['{http://calendarserver.org/ns/}getctag'];
+            }
+
+            return array(
+                'id' => '__all__',
+                'uri' => '__all__',
+                '{DAV:}displayname' => 'All',
+                '{http://calendarserver.org/ns/}getctag' => join(':', $ctags),
+                '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
+            );
+        }
+
+        // resolve aliases (addressbook by folder name)
         if ($this->aliases[$addressBookUri]) {
             $id = $this->aliases[$addressBookUri];
         }
@@ -294,8 +300,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         if ($contact) {
-            $rights = $this->storage ? $this->storage->get_myrights() : null;
-
             return array(
                 'id' => $contact['uid'],
                 'uri' => $contact['uid'] . '.vcf',
@@ -347,6 +351,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     'file' => __FILE__, 'line' => __LINE__,
                     'message' => "Error saving contact object to Kolab server"),
                     true, false);
+
+                throw new DAV\Exception('Error saving contact card to backend');
             }
         }
         else {
@@ -355,6 +361,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'file' => __FILE__, 'line' => __LINE__,
                 'message' => "Error creating contact object: UID doesn't match object URI"),
                 true, false);
+
+            throw new DAV\Exception\NotFound("UID doesn't match object URI");
         }
 
         // return new Etag
@@ -396,7 +404,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'message' => "Error creating contact object: UID doesn't match object URI"),
                 true, false);
 
-            return null;
+            throw new DAV\Exception\NotFound("UID doesn't match object URI");
         }
 
         if ($addressBookId == '__all__') {
@@ -413,7 +421,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'file' => __FILE__, 'line' => __LINE__,
                 'message' => "Unable to find storage folder for contact $addressBookId/$cardUri"),
                 true, false);
-            return null;
+
+            throw new DAV\Exception\NotFound("Invalid address book URI");
         }
 
         if (!$this->is_writeable($storage)) {
@@ -435,7 +444,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'message' => "Error saving contact object to Kolab server"),
                 true, false);
 
-            return null;
+            throw new DAV\Exception('Error saving contact card to backend');
         }
 
         // return new Etag
@@ -486,7 +495,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         $obj = kolab_storage::get_object($uid, 'contact');
         if ($obj) {
-            $storage = kolab_storage::get_folder($obj['_mbox']);
+            $storage = kolab_storage::get_folder($obj['_mailbox']);
             return $obj;
         }
 

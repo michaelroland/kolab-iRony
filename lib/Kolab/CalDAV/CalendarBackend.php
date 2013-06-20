@@ -380,6 +380,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     'file' => __FILE__, 'line' => __LINE__,
                     'message' => "Error saving event object to Kolab server"),
                     true, false);
+
+                throw new DAV\Exception('Error saving event object to backend');
             }
         }
         else {
@@ -388,6 +390,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'file' => __FILE__, 'line' => __LINE__,
                 'message' => "Error creating calendar object: UID doesn't match object URI"),
                 true, false);
+
+             throw new DAV\Exception\NotFound("UID doesn't match object URI");
         }
 
         // return new Etag
@@ -426,7 +430,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'message' => "Error creating calendar object: UID doesn't match object URI"),
                 true, false);
 
-            return null;
+            throw new DAV\Exception\NotFound("UID doesn't match object URI");
         }
 
         // copy meta data (starting with _) from old object
@@ -447,7 +451,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'message' => "Error saving event object to Kolab server"),
                 true, false);
 
-            return null;
+            throw new DAV\Exception('Error saving event object to backend');
         }
 
         // return new Etag
