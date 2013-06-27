@@ -257,7 +257,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return $cards;
         }
 
-        $query = array();
+        $query = array(array('type','=',array('contact','distribution-list')));
         $cards = array();
         if ($storage = $this->get_storage_folder($addressBookId)) {
             foreach ((array)$storage->select($query) as $contact) {
@@ -344,7 +344,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $object = $this->parse_vcard($cardData, $uid);
 
         if ($object['uid'] == $uid) {
-            $success = $storage->save($object, 'contact');
+            $success = $storage->save($object, $object['_type']);
             if (!$success) {
                 rcube::raise_error(array(
                     'code' => 600, 'type' => 'php',
@@ -426,7 +426,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         if (!$this->is_writeable($storage)) {
-            throw new DAV\Exception\MethodNotAllowed('Insufficient privileges to update this card');
+            throw new DAV\Exception\Forbidden('Insufficient privileges to update this card');
         }
 
         // copy meta data (starting with _) from old object
@@ -436,7 +436,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         // save object
-        $saved = $storage->save($object, 'contact', $uid);
+        $saved = $storage->save($object, $object['_type'], $uid);
         if (!$saved) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
@@ -598,9 +598,31 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $vc->add('UID', $contact['uid']);
         $vc->add('FN', $contact['name']);
 
-        $n = VObject\Property::create('N');
-        $n->setParts(array($contact['surname'], $contact['firstname'], $contact['middlename'], $contact['prefix'], $contact['suffix']));
-        $vc->add($n);
+        // distlists are KIND:group
+        if ($contact['_type'] == 'distribution-list') {
+            // group cards are actually vcard version 4
+            if ($this->useragent != 'macosx')
+                $vc->version = '4.0';
+
+            // prefix group properties for Apple
+            $prop_prefix = $this->useragent == 'macosx' ? 'X-ADDRESSBOOKSERVER-' : '';
+            $vc->add($prop_prefix . 'KIND', 'group');
+
+            foreach ((array)$contact['member'] as $member) {
+                if ($member['uid'])
+                    $value = 'urn:uuid:' . $member['uid'];
+                else if ($member['email'] && $member['name'])
+                    $value = urlencode(sprintf('mailto:"%s" <%s>', addcslashes($member['name'], '"'), $member['email']));
+                else if ($member['email'])
+                    $value = urlencode('mailto:' . $member['email']);
+                $vc->add($prop_prefix . 'MEMBER', $value);
+            }
+        }
+        else {
+            $n = VObject\Property::create('N');
+            $n->setParts(array($contact['surname'], $contact['firstname'], $contact['middlename'], $contact['prefix'], $contact['suffix']));
+            $vc->add($n);
+        }
 
         if (!empty($contact['nickname']))
             $vc->add('NICKNAME', $contact['nickname']);
@@ -703,6 +725,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $contact = array(
             'uid'  => strval($vc->UID),
             'name' => strval($vc->FN),
+            '_type' => 'contact',
         );
 
         if ($vc->REV) {
@@ -813,6 +836,25 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     $param = $prop->parameters[0];
                     if ($param->value && strtolower($param->value) == 'b' || strtolower($param->name) == 'base64') {
                         $contact['photo'] = base64_decode($prop->value);
+                    }
+                    break;
+
+                case 'KIND':
+                case 'X-ADDRESSBOOKSERVER-KIND':
+                    if (strtolower($prop->value) == 'group') {
+                        $contact['_type'] = 'distribution-list';
+                    }
+                    break;
+
+                case 'MEMBER':
+                case 'X-ADDRESSBOOKSERVER-MEMBER':
+                    if (strpos($prop->value, 'urn:uuid:') === 0) {
+                        $contact['member'][] = array('uid' => substr($prop->value, 9));
+                    }
+                    else if (strpos($prop->value, 'mailto:') === 0) {
+                        $member = reset(\rcube_mime::parse_address_list(urldecode(substr($prop->value, 7))));
+                        if ($member['address'])
+                            $contact['member'][] = array('email' => $member['address'], 'name' => $member['name']);
                     }
                     break;
 
