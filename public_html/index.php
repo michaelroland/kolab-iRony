@@ -155,7 +155,8 @@ if ($debug) {
     else if (function_exists('memory_get_usage'))
         $mem = memory_get_usage();
 
-    $log = trim($server->getRequestUri() . ($mem ? sprintf(' [%.1f MB]', $mem/1024/1024) : ''));
+    $log = $server->httpRequest->getMethod() . ': ' . $server->getRequestUri();
+    $log .= ($mem ? sprintf(' [%.1f MB]', $mem/1024/1024) : '');
     if (defined('KOLAB_DAV_START')) {
         rcube::print_timer(KOLAB_DAV_START, $log);
     }
