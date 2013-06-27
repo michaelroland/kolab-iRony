@@ -163,18 +163,36 @@ class Node implements \Sabre\DAV\INode
      */
     protected function fileData($name, $data = null)
     {
-        $rcube     = rcube::get_instance();
-        $temp_dir  = unslashify($rcube->config->get('temp_dir'));
-        $file_path = tempnam($temp_dir, 'davFile');
+        if ($this->data && $this->data['type']) {
+            $type = $this->data['type'];
+        }
+        else {
+            $type = 'application/octet-stream';
+        }
 
-        // @TODO: support $data as a resource in the backend
-        // @TODO: support $data as string in the backend
-        file_put_contents($file_path, $data);
+        // $data can be a resource or a string
+        if (is_resource($data)) {
+            // $data can be php://input or php://temp
+            // php://input is not seekable, we need to "convert"
+            // it to seekable resource, fstat/rewind later will work
+            $meta = stream_get_meta_data($data);
+            if (!$meta['seekable']) {
+                $new_data = fopen('php://temp','r+');
+                stream_copy_to_stream($data, $new_data);
+                rewind($new_data);
+                $data = $new_data;
+            }
+
+            $content = stream_get_contents($data, 1024000, 0);
+            rewind($data);
+        }
+        else {
+            $content = &$data;
+        }
 
         $filedata = array(
-            'path' => $file_path,
-            'size' => filesize($file_path),
-            'type' => rcube_mime::file_content_type($file_path, $name),
+            'content' => $data,
+            'type'    => rcube_mime::file_content_type($content, $name, $type, true),
         );
 
         return $filedata;
