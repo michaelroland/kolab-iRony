@@ -27,6 +27,7 @@
 // define some environment variables used thoughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
 define('KOLAB_DAV_VERSION', '0.1.0');
+define('KOLAB_DAV_START', microtime(true));
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');
 define('RCUBE_CONFIG_DIR',   KOLAB_DAV_ROOT . '/config/');
@@ -148,5 +149,17 @@ $server->exec();
 if ($debug) {
     $rcube->write_log('davdebug', "RESPONSE:\n" . ob_get_contents());
     ob_end_flush();
-}
 
+    if (function_exists('memory_get_peak_usage'))
+        $mem = memory_get_peak_usage();
+    else if (function_exists('memory_get_usage'))
+        $mem = memory_get_usage();
+
+    $log = trim($server->getRequestUri() . ($mem ? sprintf(' [%.1f MB]', $mem/1024/1024) : ''));
+    if (defined('KOLAB_DAV_START')) {
+        rcube::print_timer(KOLAB_DAV_START, $log);
+    }
+    else {
+       rcube::console($log);
+    }
+}
