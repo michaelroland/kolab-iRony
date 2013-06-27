@@ -257,7 +257,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return $cards;
         }
 
-        $query = array(array('type','=',array('contact','distribution-list')));
+        $groups_support = $this->useragent != 'thunderbird';
+        $query = array(array('type', '=', $groups_support ? array('contact','distribution-list') : 'contact'));
         $cards = array();
         if ($storage = $this->get_storage_folder($addressBookId)) {
             foreach ((array)$storage->select($query) as $contact) {
