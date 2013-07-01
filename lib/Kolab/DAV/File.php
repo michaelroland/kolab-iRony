@@ -73,7 +73,7 @@ class File extends Node implements \Sabre\DAV\IFile
     }
 
     /**
-     * Returns the data
+     * Returns the file content
      *
      * This method may either return a string or a readable stream resource
      *
@@ -81,16 +81,10 @@ class File extends Node implements \Sabre\DAV\IFile
      */
     public function get()
     {
-        // @TODO: make file path to be based on user ID and file ETag
-        // and check if it exists before - use it for better performance
-        $rcube     = rcube::get_instance();
-        $temp_dir  = unslashify($rcube->config->get('temp_dir'));
-        $file_path = tempnam($temp_dir, 'davFile');
-
-        $fp = @fopen($file_path, 'bw+');
-
         try {
+            $fp = fopen('php://temp', 'bw+');
             $this->backend->file_get($this->path, array(), $fp);
+            rewind($fp);
         }
         catch (Exception $e) {
 //            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
