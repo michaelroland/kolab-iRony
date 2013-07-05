@@ -78,6 +78,7 @@ class Backend
         $class  = $driver . '_file_storage';
 
         $this->api = new $class;
+        $this->api->configure($this->config);
     }
 
     /*
