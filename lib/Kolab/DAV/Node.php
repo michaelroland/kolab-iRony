@@ -130,7 +130,7 @@ class Node implements \Sabre\DAV\INode
         array_pop($path);
         $newname = implode('/', $path) . '/' . $name;
 
-        $method = (is_a($this, 'File') ? 'file' : 'folder') . '_move';
+        $method = (is_a($this, 'Kolab\\DAV\\File') ? 'file' : 'folder') . '_move';
 
         try {
             $this->backend->$method($this->path, $newname);
