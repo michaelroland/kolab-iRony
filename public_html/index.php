@@ -24,7 +24,7 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-// define some environment variables used thoughout the app and libraries
+// define some environment variables used throughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
 define('KOLAB_DAV_VERSION', '0.1.0');
 define('KOLAB_DAV_START', microtime(true));
@@ -73,49 +73,52 @@ $rcube->plugins->load_plugins($plugins, $required);
 function console() { call_user_func_array(array('rcube', 'console'), func_get_args()); }
 
 
-// quick & dirty request debugging
-if ($debug = $rcube->config->get('kolab_dav_debug')) {
-    $http_headers = $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n";
-    foreach (apache_request_headers() as $hdr => $value) {
-        $http_headers .= "$hdr: $value\n";
-    }
-    // read HTTP request body (with our own file handle)
-#    $in = fopen('php://input', 'r');
-#    $http_body = stream_get_contents($in);
-#    fseek($in, 0);
-#    fclose($in);
-
-    $rcube->write_log('davdebug', $http_headers . "\n" . $http_body . "\n");
-    ob_start();  // turn on output buffering
-}
-
-
 // Make sure this setting is turned on and reflects the root url of the *DAV server.
 $base_uri = $rcube->config->get('base_uri', slashify(substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT']))));
 
+// add filename to base URI when called without mod_rewrite (e.g. /dav/index.php/calendar)
+if (strpos($_SERVER['REQUEST_URI'], 'index.php'))
+    $base_uri .= 'index.php/';
 
 // create the various backend instances
 $auth_backend      = new \Kolab\DAV\Auth\HTTPBasic();
 $principal_backend = new \Kolab\DAVACL\PrincipalBackend();
-$carddav_backend   = new \Kolab\CardDAV\ContactsBackend();
-$caldav_backend    = new \Kolab\CalDAV\CalendarBackend();
 
-$carddav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
-$caldav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
+$services = array();
+foreach (array('CALDAV','CARDDAV','WEBDAV') as $skey) {
+    if (getenv($skey))
+        $services[$skey] = 1;
+}
 
+// no config means *all* services
+if (empty($services))
+    $services = array('CALDAV' => 1, 'CARDDAV' => 1, 'WEBDAV' => 1);
 
 // Build the directory tree
 // This is an array which contains the 'top-level' directories in the WebDAV server.
-$nodes = array(
-    // files
-    new \Kolab\DAV\Collection(\Kolab\DAV\Collection::ROOT_DIRECTORY),
-    // /principals
-    new \Sabre\CalDAV\Principal\Collection($principal_backend),
-    // /calendars
-    new \Kolab\CalDAV\CalendarRootNode($principal_backend, $caldav_backend),
-    // /addressbook
-    new \Kolab\CardDAV\AddressBookRoot($principal_backend, $carddav_backend),
-);
+if ($services['CALDAV'] || $services['CARDDAV']) {
+    $nodes = array(
+        new \Sabre\CalDAV\Principal\Collection($principal_backend),
+    );
+
+    if ($services['CALDAV']) {
+        $caldav_backend = new \Kolab\CalDAV\CalendarBackend();
+        $caldav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
+        $nodes[] = new \Kolab\CalDAV\CalendarRootNode($principal_backend, $caldav_backend);
+    }
+    if ($services['CARDDAV']) {
+        $carddav_backend = new \Kolab\CardDAV\ContactsBackend();
+        $carddav_backend->setUserAgent($_SERVER['HTTP_USER_AGENT']);
+        $nodes[] = new \Kolab\CardDAV\AddressBookRoot($principal_backend, $carddav_backend);
+    }
+    if ($services['WEBDAV']) {
+        $nodes[] = new \Kolab\DAV\Collection(\Kolab\DAV\Collection::ROOT_DIRECTORY);
+    }
+}
+// register WebDAV service as root
+else if ($services['WEBDAV']) {
+    $nodes = new \Kolab\DAV\Collection('');
+}
 
 // the object tree needs in turn to be passed to the server class
 $server = new \Sabre\DAV\Server($nodes);
@@ -124,43 +127,32 @@ $server->setBaseUri($base_uri);
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
-$server->addPlugin(new \Kolab\CardDAV\Plugin());
 
-$caldav_plugin = new \Kolab\CalDAV\Plugin();
-$caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
-$server->addPlugin($caldav_plugin);
+if ($services['CALDAV']) {
+    $caldav_plugin = new \Kolab\CalDAV\Plugin();
+    $caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
+    $server->addPlugin($caldav_plugin);
+}
 
-// the lock manager is reponsible for making sure users don't overwrite each others changes.
-// TODO: replace this with a class that manages locks in the Kolab backend
-$locks_backend = new \Sabre\DAV\Locks\Backend\File(KOLAB_DAV_ROOT . '/temp/locks');
-$server->addPlugin(new \Sabre\DAV\Locks\Plugin($locks_backend));
+if ($services['CARDDAV']) {
+    $server->addPlugin(new \Kolab\CardDAV\Plugin());
+}
 
-// intercept some of the garbage files operation systems tend to generate when mounting a WebDAV share
-$server->addPlugin(new \Sabre\DAV\TemporaryFileFilterPlugin(KOLAB_DAV_ROOT . '/temp'));
+if ($services['WEBDAV']) {
+    // the lock manager is reponsible for making sure users don't overwrite each others changes.
+    // TODO: replace this with a class that manages locks in the Kolab backend
+    $locks_backend = new \Sabre\DAV\Locks\Backend\File(KOLAB_DAV_ROOT . '/temp/locks');
+    $server->addPlugin(new \Sabre\DAV\Locks\Plugin($locks_backend));
+
+    // intercept some of the garbage files operation systems tend to generate when mounting a WebDAV share
+    $server->addPlugin(new \Sabre\DAV\TemporaryFileFilterPlugin(KOLAB_DAV_ROOT . '/temp'));
+}
 
 // HTML UI for browser-based access (recommended only for development)
-$server->addPlugin(new \Sabre\DAV\Browser\Plugin());
+if (getenv('DAVBROWSER')) {
+    $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
+}
 
 // finally, process the request
 $server->exec();
 
-
-// catch server response in debug log
-if ($debug) {
-    $rcube->write_log('davdebug', "RESPONSE:\n" . ob_get_contents());
-    ob_end_flush();
-
-    if (function_exists('memory_get_peak_usage'))
-        $mem = memory_get_peak_usage();
-    else if (function_exists('memory_get_usage'))
-        $mem = memory_get_usage();
-
-    $log = $server->httpRequest->getMethod() . ': ' . $server->getRequestUri();
-    $log .= ($mem ? sprintf(' [%.1f MB]', $mem/1024/1024) : '');
-    if (defined('KOLAB_DAV_START')) {
-        rcube::print_timer(KOLAB_DAV_START, $log);
-    }
-    else {
-       rcube::console($log);
-    }
-}

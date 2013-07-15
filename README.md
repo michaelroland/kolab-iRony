@@ -58,6 +58,14 @@ Add following mod_rewrite configuration into virtual host config or .htaccess fi
     RewriteCond  %{REQUEST_FILENAME}  !-d
     RewriteRule  (.*)                 index.php  [qsappend,last]
 
+    SetEnv CALDAV     1
+    SetEnv CARDDAV    1
+    SetEnv WEBDAV     1
+
+Use the SetEnv properties to configure which services shall be provided under
+a certain host. If only WEBDAV is enabled, the shared folders are listed
+directly at root level and not in /files/.
+
 
 [1]: http://getcomposer.org
 [2]: https://github.com/roundcube/roundcubemail/blob/master/program/lib/Roundcube/README.md)
