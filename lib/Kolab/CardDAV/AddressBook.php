@@ -86,6 +86,19 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
     }
 
     /**
+     * Returns a card
+     *
+     * @param string $name
+     * @return \ICard
+     *
+    public function getChild($name)
+    {
+        $obj = $this->carddavBackend->getCard($this->addressBookInfo['id'], $name);
+        if (!$obj) throw new DAV\Exception\NotFound('Card not found');
+        return new Card($this->carddavBackend,$this->addressBookInfo, $obj);
+    }*/
+
+    /**
      * Returns a list of ACE's for this node.
      *
      * Each ACE has the following properties:
