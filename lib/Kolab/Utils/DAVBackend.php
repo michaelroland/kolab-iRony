@@ -229,7 +229,7 @@ class DAVBackend
      * @param string $uid
      * @return false|string
      */
-    public function folder_create(string $type, array $properties, string $uid)
+    public function folder_create($type, array $properties, $uid)
     {
         $props = array(
             'type' => $type,
@@ -255,11 +255,11 @@ class DAVBackend
             }
         }
 
-        if (!empty($props['name']) && ($fname = kolab_storage::folder_update($props))) {
+        if (!($fname = kolab_storage::folder_update($props))) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
                 'file' => __FILE__, 'line' => __LINE__,
-                'message' => "Error creating a new calendar folder '$props[name]':" . kolab_storage::$last_error),
+                'message' => "Error creating a new $type folder '$props[name]':" . kolab_storage::$last_error),
                 true, false);
             return false;
         }
