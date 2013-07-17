@@ -233,7 +233,7 @@ class DAVBackend
     {
         $props = array(
             'type' => $type,
-            'name' => 'Untitled',
+            'name' => '',
             'subscribed' => true,
         );
 
@@ -253,6 +253,12 @@ class DAVBackend
                 default:
                     // unsupported property
             }
+        }
+
+        // use UID as name if it doesn't seem to be a real UID
+        // TODO: append number to default "Untitled" folder name if one already exists
+        if (empty($props['name'])) {
+            $props['name'] = strlen($uid) < 16 ? $uid : 'Untitled';
         }
 
         if (!($fname = kolab_storage::folder_update($props))) {
