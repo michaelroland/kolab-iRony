@@ -374,6 +374,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->parse_calendar_data($calendarData, $uid);
 
+        if (empty($object)) {
+            throw new DAV\Exception('Parse error: not a valid iCalendar 2.0 object');
+        }
+
         if ($object['uid'] == $uid) {
             $success = $storage->save($object, $object['_type']);
             if (!$success) {
@@ -423,6 +427,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $uid = basename($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->parse_calendar_data($calendarData, $uid);
+
+        if (empty($object)) {
+            throw new DAV\Exception('Parse error: not a valid iCalendar 2.0 object');
+        }
 
         // sanity check
         if ($object['uid'] != $uid) {
@@ -767,6 +775,19 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             }
         }
 
+        // check DURATION property if no end date is set
+        if (empty($event['end']) && $ve->DURATION) {
+            try {
+                $duration = new \DateInterval(strval($ve->DURATION));
+                $end = clone $event['start'];
+                $end->add($duration);
+                $event['end'] = $end;
+            }
+            catch (\Exception $e) {
+                trigger_error(strval($e), E_USER_WARNING);
+            }
+        }
+
         // check for all-day dates
         if ($event['start']->_dateonly) {
             $event['allday'] = true;
@@ -803,6 +824,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
             if ($trigger)
                 $event['alarms'] = $trigger . ':' . $action;
+        }
+
+        // validate
+        if (empty($event['uid']) || empty($event['start']) || !($event['start'] instanceof \DateTime) || empty($event['end']) || !($event['end'] instanceof \DateTime)) {
+            throw new VObject\ParseException('Object validation failed: missing mandatory object properties');
         }
 
         return $event;
