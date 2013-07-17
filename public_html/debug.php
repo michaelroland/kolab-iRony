@@ -37,9 +37,13 @@ require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
 $rcube = rcube::get_instance();
 $rcube->config->load_from_file(RCUBE_CONFIG_DIR . 'dav.inc.php');
 
+$base_uri = $rcube->config->get('base_uri', slashify(substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT']))));
+
 // quick & dirty request debugging
 $http_headers = array();
 foreach (apache_request_headers() as $hdr => $value) {
+    if ($hdr == 'Destination')
+        $value = str_replace($base_uri, $base_uri . 'index.php/', $value);
     $http_headers[] = "$hdr: $value";
 }
 // read HTTP request body
@@ -52,7 +56,6 @@ $rcube->write_log('davdebug', $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUE
 
 
 // forward the full request to index.php
-$base_uri = $rcube->config->get('base_uri', slashify(substr(dirname($_SERVER['SCRIPT_FILENAME']), strlen($_SERVER['DOCUMENT_ROOT']))));
 $rel_url = substr($_SERVER['REQUEST_URI'], strlen($base_uri));
 $host = $_SERVER['HTTP_HOST'];
 $port = 80;
@@ -80,7 +83,7 @@ $result = str_replace('index.php/', '', curl_exec($ch));
 $info = curl_getinfo($ch);
 
 // send recieved HTTP status code
-$result_headers = $_SERVER['SERVER_PROTOCOL'] . " " . $info['http_code'] . " " . HTTP_Request2_Response::getDefaultReasonPhrase($info['http_code']);
+$result_headers = $_SERVER['SERVER_PROTOCOL'] . " " . $info['http_code'] . " " . http_response_phrase($info['http_code']);
 header($result_headers, true);
 
 // forward response headers
@@ -95,4 +98,72 @@ $rcube->write_log('davdebug', "RESPONSE:\n" . $result_headers . "\n\n" . (strpos
 
 // send response body back to client
 echo $result;
+
+
+/**
+ * Derived from HTTP_Request2_Response::getDefaultReasonPhrase()
+ */
+function http_response_phrase($code)
+{
+    static $phrases = array(
+
+        // 1xx: Informational - Request received, continuing process
+        100 => 'Continue',
+        101 => 'Switching Protocols',
+
+        // 2xx: Success - The action was successfully received, understood and
+        // accepted
+        200 => 'OK',
+        201 => 'Created',
+        202 => 'Accepted',
+        203 => 'Non-Authoritative Information',
+        204 => 'No Content',
+        205 => 'Reset Content',
+        206 => 'Partial Content',
+        207 => 'Multi-Status',
+
+        // 3xx: Redirection - Further action must be taken in order to complete
+        // the request
+        300 => 'Multiple Choices',
+        301 => 'Moved Permanently',
+        302 => 'Found',  // 1.1
+        303 => 'See Other',
+        304 => 'Not Modified',
+        305 => 'Use Proxy',
+        307 => 'Temporary Redirect',
+
+        // 4xx: Client Error - The request contains bad syntax or cannot be
+        // fulfilled
+        400 => 'Bad Request',
+        401 => 'Unauthorized',
+        402 => 'Payment Required',
+        403 => 'Forbidden',
+        404 => 'Not Found',
+        405 => 'Method Not Allowed',
+        406 => 'Not Acceptable',
+        407 => 'Proxy Authentication Required',
+        408 => 'Request Timeout',
+        409 => 'Conflict',
+        410 => 'Gone',
+        411 => 'Length Required',
+        412 => 'Precondition Failed',
+        413 => 'Request Entity Too Large',
+        414 => 'Request-URI Too Long',
+        415 => 'Unsupported Media Type',
+        416 => 'Requested Range Not Satisfiable',
+        417 => 'Expectation Failed',
+
+        // 5xx: Server Error - The server failed to fulfill an apparently
+        // valid request
+        500 => 'Internal Server Error',
+        501 => 'Not Implemented',
+        502 => 'Bad Gateway',
+        503 => 'Service Unavailable',
+        504 => 'Gateway Timeout',
+        505 => 'HTTP Version Not Supported',
+        509 => 'Bandwidth Limit Exceeded',
+    );
+
+    return $phrases[$code];
+}
 
