@@ -58,7 +58,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $folders = kolab_storage::get_folders('contact');
         $this->sources = $this->folders = $this->aliases = array();
 
-        foreach (DAVBackend::sort_folders($folders) as $folder) {
+        foreach (kolab_storage::sort_folders($folders) as $folder) {
             $id = DAVBackend::get_uid($folder);
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation
             $this->folders[$id] = $folder;

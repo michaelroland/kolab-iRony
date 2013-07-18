@@ -61,7 +61,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $folders = array_merge(kolab_storage::get_folders('event'), kolab_storage::get_folders('task'));
         $this->calendars = $this->folders = $this->aliases = array();
 
-        foreach (DAVBackend::sort_folders($folders) as $folder) {
+        foreach (kolab_storage::sort_folders($folders) as $folder) {
             $id = DAVBackend::get_uid($folder);
             $this->folders[$id] = $folder;
             $fdata = $folder->get_imap_data();  // fetch IMAP folder data for CTag generation

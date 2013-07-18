@@ -94,35 +94,6 @@ class DAVBackend
     }
 
     /**
-     * Sort the given list of kolab folders by namespace/name
-     *
-     * @param array List of kolab_storage_folder objects
-     * @return array Sorted list of folders
-     */
-    public static function sort_folders($folders)
-    {
-        $nsnames = array('personal' => array(), 'shared' => array(), 'other' => array());
-        foreach ($folders as $folder) {
-            $folders[$folder->name] = $folder;
-            $ns = $folder->get_namespace();
-            $nsnames[$ns][$folder->name] = html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET);  // decode &raquo;
-        }
-
-        $names = array();
-        foreach ($nsnames as $ns => $dummy) {
-            asort($nsnames[$ns], SORT_LOCALE_STRING);
-            $names += $nsnames[$ns];
-        }
-
-        $out = array();
-        foreach ($names as $utf7name => $name) {
-            $out[] = $folders[$utf7name];
-        }
-
-        return $out;
-    }
-
-    /**
      * Build an absolute URL with the given parameters
      */
     public static function abs_url($parts = array())
