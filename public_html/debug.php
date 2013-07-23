@@ -44,7 +44,7 @@ $http_headers = array();
 foreach (apache_request_headers() as $hdr => $value) {
     if ($hdr == 'Destination')
         $value = str_replace($base_uri, $base_uri . 'index.php/', $value);
-    $http_headers[] = "$hdr: $value";
+    $http_headers[$hdr] = "$hdr: $value";
 }
 // read HTTP request body
 $in = fopen('php://input', 'r');
@@ -54,6 +54,9 @@ fclose($in);
 $rcube->write_log('davdebug', $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI'] . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n" .
     join("\n", $http_headers) . "\n\n" . $http_body);
 
+// fix URIs in request body
+$http_body = preg_replace("!(<d:href>$base_uri)!i", '\\1index.php/', $http_body);
+$http_headers['Content-Length'] = "Content-Length: " . strlen($http_body);
 
 // forward the full request to index.php
 $rel_url = substr($_SERVER['REQUEST_URI'], strlen($base_uri));
@@ -62,7 +65,7 @@ $port = 80;
 $path = $base_uri . 'index.php/' . $rel_url;
 
 // remove Host: header
-array_shift($http_headers);
+unset($http_headers['Host']);
 $response_headers = array();
 
 // re-send using curl
@@ -71,7 +74,7 @@ curl_setopt($ch, CURLOPT_URL,            "http://$host:$port$path");
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
 curl_setopt($ch, CURLOPT_CUSTOMREQUEST,  $_SERVER['REQUEST_METHOD']);
 curl_setopt($ch, CURLOPT_POSTFIELDS,     $http_body);
-curl_setopt($ch, CURLOPT_HTTPHEADER,     $http_headers);
+curl_setopt($ch, CURLOPT_HTTPHEADER,     array_values($http_headers));
 curl_setopt($ch, CURLOPT_HEADER,         0);
 curl_setopt($ch, CURLOPT_HEADERFUNCTION, function($ch, $header) use (&$response_headers){
     list($key, $val) = explode(": ", rtrim($header), 2);
