@@ -793,8 +793,17 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $event['allday'] = true;
         }
 
-        if ($event['allday'] && is_object($event['end'])) {
+        // shift end-date by one day (except Thunderbird)
+        if ($event['allday'] && is_object($event['end']) && !$this->useragent == 'lightning') {
             $event['end']->sub(new \DateInterval('PT23H'));
+        }
+
+        // sanity-check and fix end date
+        if (empty($event['end'])) {
+            $event['end'] = clone $event['start'];
+        }
+        else if ($event['end'] < $event['start']) {
+            $event['end'] = clone $event['start'];
         }
 
         // find alarms
