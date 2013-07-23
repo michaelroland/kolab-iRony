@@ -1,8 +1,8 @@
 {
-	"name": "kolab/webdav",
-	"description": "Kolab WebDAV/CalDAV/CardDAV Server",
+	"name": "kolab/irony",
+	"description": "iRony - The Kolab WebDAV/CalDAV/CardDAV Server",
 	"license": "AGPL-3.0",
-	"version": "0.1-alpha",
+	"version": "0.1.0",
 	"repositories": [
 		{
 			"type": "vcs",
