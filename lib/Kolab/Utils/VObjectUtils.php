@@ -32,36 +32,6 @@ class VObjectUtils
 {
 
     /**
-     * Helper method to correctly interpret an all-day date value
-     */
-    public static function convert_datetime($prop)
-    {
-        if (empty($prop)) {
-            return null;
-        }
-        else if ($prop instanceof Property\MultiDateTime) {
-            $dt = array();
-            $dateonly = ($prop->getDateType() & Property\DateTime::DATE);
-            foreach ($prop->getDateTimes() as $item) {
-                $item->_dateonly = $dateonly;
-                $dt[] = $item;
-            }
-        }
-        else if ($prop instanceof Property\DateTime) {
-            $dt = $prop->getDateTime();
-            if ($prop->getDateType() & Property\DateTime::DATE) {
-                $dt->_dateonly = true;
-            }
-        }
-        else if ($prop instanceof \DateTime) {
-            $dt = $prop;
-        }
-
-        return $dt;
-    }
-
-
-    /**
      * Create a Sabre\VObject\Property instance from a PHP DateTime object
      *
      * @param string Property name

@@ -30,6 +30,7 @@ use \kolab_storage;
 use \libcalendaring;
 use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
+use Kolab\DAV\Auth\HTTPBasic;
 use Sabre\DAV;
 use Sabre\CalDAV;
 use Sabre\VObject;
@@ -157,6 +158,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // resolve aliases (calendar by folder name)
         if ($this->aliases[$calendarUri]) {
             $id = $this->aliases[$calendarUri];
+        }
+
+        if ($this->calendars[$id] && empty($this->calendars[$id]['principaluri'])) {
+            $this->calendars[$id]['principaluri'] = 'principals/' . HTTPBasic::$current_user;
         }
 
         return $this->calendars[$id];
@@ -328,6 +333,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 }
             }
 
+            // map attributes
+            $event['attachments'] = $event['_attachments'];
+
+            // compose an absilute URI for referencing object attachments
             $base_uri = DAVBackend::abs_url(array(
                 CalDAV\Plugin::CALENDAR_ROOT,
                 preg_replace('!principals/!', '', $this->calendars[$calendarId]['principaluri']),
@@ -379,6 +388,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         if ($object['uid'] == $uid) {
+            // map attachments attribute
+            $object['_attachments'] = $object['attachments'];
+
             $success = $storage->save($object, $object['_type']);
             if (!$success) {
                 rcube::raise_error(array(
@@ -450,7 +462,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 $object[$key] = $val;
         }
 
-        // TODO: remove attachments not listed anymore
+        // process attachments
+        if (/* user agent known to handle attachments inline */ FALSE) {
+            $object['_attachments'] = $object['attachments'];
+
+            // mark all existing attachments as deleted (update is always absolute)
+            foreach ($old['_attachments'] as $key => $attach) {
+                $object['_attachments'][$key] = false;
+            }
+        }
 
         // save object
         $saved = $storage->save($object, $object['_type'], $uid);
@@ -572,8 +592,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
     /**********  Data conversion utilities  ***********/
 
-    private $attendee_keymap = array('name' => 'CN', 'status' => 'PARTSTAT', 'role' => 'ROLE', 'cutype' => 'CUTYPE', 'rsvp' => 'RSVP');
-
     /**
      * Parse the given iCal string into a hash array kolab_format_event can handle
      *
@@ -583,38 +601,19 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     private function parse_calendar_data($calendarData, $uid)
     {
         try {
+            $ical = libcalendaring::get_ical();
+
             // use already parsed object
             if (Plugin::$parsed_vevent && Plugin::$parsed_vevent->UID == $uid) {
-                $vobject = Plugin::$parsed_vcalendar;
-                $vevent = Plugin::$parsed_vevent;
+                $objects = $ical->import_from_vobject(Plugin::$parsed_vcalendar);
             }
             else {
-                $vobject = VObject\Reader::read($calendarData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
-                if ($vobject->name == 'VCALENDAR') {
-                    foreach ($vobject->getBaseComponents() as $ve) {
-                        if ($ve->name == 'VEVENT' || $ve->name == 'VTODO') {
-                            $vevent = $ve;
-                            break;
-                        }
-                    }
-                }
+                $objects = $ical->import($calendarData);
             }
 
-            // convert the VEvent object into a hash array
-            if ($vevent && $vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
-                $object = $this->_to_array($vevent);
-                if (!empty($object['uid'])) {
-                    // parse recurrence exceptions
-                    if ($object['recurrence']) {
-                        foreach ($vobject->children as $i => $component) {
-                            if ($component->name == 'VEVENT' && isset($component->{'RECURRENCE-ID'})) {
-                                $object['recurrence']['EXCEPTIONS'][] = $this->_to_array($component);
-                            }
-                        }
-                    }
-
-                    return $object;
-                }
+            // return the first object
+            if (count($objects)) {
+                return $objects[0];
             }
         }
         catch (VObject\ParseException $e) {
@@ -629,222 +628,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     }
 
     /**
-     * Convert the given Sabre\VObject\Component\Vevent object to a libkolab compatible event format
-     *
-     * @param object Vevent object to convert
-     * @return array Hash array with event properties
-     * @TODO: move this to libcalendaring for common use
-     */
-    private function _to_array($ve)
-    {
-        $event = array(
-            'uid'     => strval($ve->UID),
-            'title'   => strval($ve->SUMMARY),
-            'created' => $ve->CREATED ? $ve->CREATED->getDateTime() : null,
-            'changed' => $ve->DTSTAMP->getDateTime(),
-            '_type'   => $ve->name == 'VTODO' ? 'task' : 'event',
-            // set defaults
-            'free_busy' => 'busy',
-            'priority' => 0,
-            'attendees' => array(),
-        );
-
-        // map other attributes to internal fields
-        $_attendees = array();
-        foreach ($ve->children as $prop) {
-            if (!($prop instanceof VObject\Property))
-                continue;
-
-            switch ($prop->name) {
-            case 'DTSTART':
-            case 'DTEND':
-            case 'DUE':
-                $propmap = array('DTSTART' => 'start', 'DTEND' => 'end', 'DUE' => 'due');
-                $event[$propmap[$prop->name]] =  VObjectUtils::convert_datetime($prop);
-                break;
-
-            case 'TRANSP':
-                $event['free_busy'] = $prop->value == 'TRANSPARENT' ? 'free' : 'busy';
-                break;
-
-            case 'STATUS':
-                if ($prop->value == 'TENTATIVE')
-                    $event['free_busy'] = 'tentative';
-                else if ($prop->value == 'CANCELLED')
-                    $event['cancelled'] = true;
-                else if ($prop->value == 'COMPLETED')
-                    $event['complete'] = 100;
-                break;
-
-            case 'PRIORITY':
-                if (is_numeric($prop->value))
-                    $event['priority'] = $prop->value;
-                break;
-
-            case 'RRULE':
-                $params = array();
-                // parse recurrence rule attributes
-                foreach (explode(';', $prop->value) as $par) {
-                    list($k, $v) = explode('=', $par);
-                    $params[$k] = $v;
-                }
-                if ($params['UNTIL'])
-                    $params['UNTIL'] = date_create($params['UNTIL']);
-                if (!$params['INTERVAL'])
-                    $params['INTERVAL'] = 1;
-
-                $event['recurrence'] = $params;
-                break;
-
-            case 'EXDATE':
-                $event['recurrence']['EXDATE'] = array_merge((array)$event['recurrence']['EXDATE'], (array)VObjectUtils::convert_datetime($prop));
-                break;
-
-            case 'RECURRENCE-ID':
-                // $event['recurrence_id'] = VObjectUtils::convert_datetime($prop);
-                break;
-
-            case 'RELATED-TO':
-                if ($prop->offsetGet('RELTYPE') == 'PARENT') {
-                    $event['parent_id'] = $prop->value;
-                }
-                break;
-
-            case 'SEQUENCE':
-                $event['sequence'] = intval($prop->value);
-                break;
-
-            case 'PERCENT-COMPLETE':
-                $event['complete'] = intval($prop->value);
-                break;
-
-            case 'DESCRIPTION':
-            case 'LOCATION':
-            case 'URL':
-                $event[strtolower($prop->name)] = $prop->value;
-                break;
-
-            case 'CATEGORY':
-            case 'CATEGORIES':
-                $event['categories'] = $prop->getParts();
-                break;
-
-            case 'CLASS':
-            case 'X-CALENDARSERVER-ACCESS':
-                $event['sensitivity'] = strtolower($prop->value);
-                break;
-
-            case 'X-MICROSOFT-CDO-BUSYSTATUS':
-                if ($prop->value == 'OOF')
-                    $event['free_busy'] == 'outofoffice';
-                else if (in_array($prop->value, array('FREE', 'BUSY', 'TENTATIVE')))
-                    $event['free_busy'] = strtolower($prop->value);
-                break;
-
-            case 'ATTENDEE':
-            case 'ORGANIZER':
-                $params = array();
-                foreach ($prop->parameters as $param) {
-                    switch ($param->name) {
-                        case 'RSVP': $params[$param->name] = strtolower($param->value) == 'true'; break;
-                        default:     $params[$param->name] = $param->value; break;
-                    }
-                }
-                $attendee = VObjectUtils::map_keys($params, array_flip($this->attendee_keymap));
-                $attendee['email'] = preg_replace('/^mailto:/i', '', $prop->value);
-
-                if ($prop->name == 'ORGANIZER') {
-                    $attendee['status'] = 'ACCEPTED';
-                    $event['organizer'] = $attendee;
-                }
-                else if ($attendee['email'] != $event['organizer']['email']) {
-                    $event['attendees'][] = $attendee;
-                }
-                break;
-
-            case 'ATTACH':
-                if (substr($prop->value, 0, 4) == 'http' && !strpos($prop->value, ':attachment:')) {
-                    $event['links'][] = $prop->value;
-                }
-                break;
-
-            default:
-                if (substr($prop->name, 0, 2) == 'X-')
-                    $event['x-custom'][] = array($prop->name, strval($prop->value));
-                break;
-            }
-        }
-
-        // check DURATION property if no end date is set
-        if (empty($event['end']) && $ve->DURATION) {
-            try {
-                $duration = new \DateInterval(strval($ve->DURATION));
-                $end = clone $event['start'];
-                $end->add($duration);
-                $event['end'] = $end;
-            }
-            catch (\Exception $e) {
-                trigger_error(strval($e), E_USER_WARNING);
-            }
-        }
-
-        // check for all-day dates
-        if ($event['start']->_dateonly) {
-            $event['allday'] = true;
-        }
-
-        // shift end-date by one day
-        if ($event['allday'] && is_object($event['end'])) {
-            $event['end']->sub(new \DateInterval('PT23H'));
-        }
-
-        // sanity-check and fix end date
-        if (empty($event['end'])) {
-            $event['end'] = clone $event['start'];
-        }
-        else if ($event['end'] < $event['start']) {
-            $event['end'] = clone $event['start'];
-        }
-
-        // find alarms
-        if ($valarms = $ve->select('VALARM')) {
-            $action = 'DISPLAY';
-            $trigger = null;
-
-            $valarm = reset($valarms);
-            foreach ($valarm->children as $prop) {
-                switch ($prop->name) {
-                case 'TRIGGER':
-                    foreach ($prop->parameters as $param) {
-                        if ($param->name == 'VALUE' && $param->value == 'DATE-TIME') {
-                            $trigger = '@' . $prop->getDateTime()->format('U');
-                        }
-                    }
-                    if (!$trigger) {
-                        $trigger = preg_replace('/PT/', '', $prop->value);
-                    }
-                    break;
-
-                case 'ACTION':
-                    $action = $prop->value;
-                    break;
-                }
-            }
-
-            if ($trigger)
-                $event['alarms'] = $trigger . ':' . $action;
-        }
-
-        // validate
-        if (empty($event['uid']) || empty($event['start']) || !($event['start'] instanceof \DateTime) || empty($event['end']) || !($event['end'] instanceof \DateTime)) {
-            throw new VObject\ParseException('Object validation failed: missing mandatory object properties');
-        }
-
-        return $event;
-    }
-
-
-    /**
      * Build a valid iCal format block from the given event
      *
      * @param array Hash array with event/task properties from libkolab
@@ -852,173 +635,26 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      * @param object RECURRENCE-ID property when serializing a recurrence exception
      * @return mixed VCALENDAR string containing the VEVENT data
      *    or VObject\VEvent object with a recurrence exception instance
-     * @TODO: move this to libcalendaring for common use
+     * @see: \libvcalendar::export()
      */
     private function _to_ical($event, $base_uri, $storage, $recurrence_id = null)
     {
-        $type = $event['_type'] ?: 'event';
-        $ve = VObject\Component::create($this->type_component_map[$type]);
-        $ve->add('UID', $event['uid']);
+        $ical = libcalendaring::get_ical();
+        $ical->set_prodid('-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN');
 
-        // all-day events end the next day
-        if ($event['allday'] && !empty($event['end'])) {
-            $event['end'] = clone $event['end'];
-            $event['end']->add(new \DateInterval('P1D'));
-            $event['end']->_dateonly = true;
+        // embed attachments for iCal
+        if ($this->useragent == 'ical') {
+            $get_attachment = function($id, $event) use ($storage) {
+                return $storage->get_attachment($event['id'], $id);
+            };
+        }
+        else {   // list attachments as absolute URIs
+            $get_attachment = null;
+            $ical->set_attach_uri($base_uri . ':attachment:{{id}}:{{name}}');
         }
 
-        if (!empty($event['created']))
-            $ve->add(VObjectUtils::datetime_prop('CREATED', $event['created'], true));
-        if (!empty($event['changed']))
-            $ve->add(VObjectUtils::datetime_prop('DTSTAMP', $event['changed'], true));
-        if (!empty($event['start']))
-            $ve->add(VObjectUtils::datetime_prop('DTSTART', $event['start'], false));
-        if (!empty($event['end']))
-            $ve->add(VObjectUtils::datetime_prop('DTEND',   $event['end'], false));
-        if (!empty($event['due']))
-            $ve->add(VObjectUtils::datetime_prop('DUE',   $event['due'], false));
-
-        if ($recurrence_id)
-            $ve->add($recurrence_id);
-
-        $ve->add('SUMMARY', $event['title']);
-
-        if ($event['location'])
-            $ve->add('LOCATION', $event['location']);
-        if ($event['description'])
-            $ve->add('DESCRIPTION', strtr($event['description'], array("\r\n" => "\n", "\r" => "\n"))); // normalize line endings
-
-        if ($event['sequence'])
-            $ve->add('SEQUENCE', $event['sequence']);
-
-        if ($event['recurrence'] && !$recurrence_id) {
-            if ($exdates = $event['recurrence']['EXDATE']) {
-                unset($event['recurrence']['EXDATE']);  // don't serialize EXDATEs into RRULE value
-            }
-
-            $ve->add('RRULE', libcalendaring::to_rrule($event['recurrence']));
-
-            // add EXDATEs each one per line (for Thunderbird Lightning)
-            if ($exdates) {
-                foreach ($exdates as $ex) {
-                    if ($ex instanceof \DateTime) {
-                        $exd = clone $event['start'];
-                        $exd->setDate($ex->format('Y'), $ex->format('n'), $ex->format('j'));
-                        $exd->setTimeZone(new \DateTimeZone('UTC'));
-                        $ve->add(new VObject\Property('EXDATE', $exd->format('Ymd\\THis\\Z')));
-                    }
-                }
-            }
-        }
-
-        if ($event['categories']) {
-            $cat = VObject\Property::create('CATEGORIES');
-            $cat->setParts((array)$event['categories']);
-            $ve->add($cat);
-        }
-
-        $ve->add('TRANSP', $event['free_busy'] == 'free' ? 'TRANSPARENT' : 'OPAQUE');
-
-        if ($event['priority'])
-          $ve->add('PRIORITY', $event['priority']);
-
-        if ($event['cancelled'])
-            $ve->add('STATUS', 'CANCELLED');
-        else if ($event['free_busy'] == 'tentative')
-            $ve->add('STATUS', 'TENTATIVE');
-        else if ($event['complete'] == 100)
-            $ve->add('STATUS', 'COMPLETED');
-
-        if (!empty($event['sensitivity']))
-            $ve->add('CLASS', strtoupper($event['sensitivity']));
-
-        if (isset($event['complete'])) {
-            $ve->add('PERCENT-COMPLETE', intval($event['complete']));
-            // Apple iCal required the COMPLETED date to be set in order to consider a task complete
-            if ($event['complete'] == 100)
-                $ve->add(VObjectUtils::datetime_prop('COMPLETED', $event['changed'] ?: new DateTime('now - 1 hour'), true));
-        }
-
-        if ($event['alarms']) {
-            $va = VObject\Component::create('VALARM');
-            list($trigger, $va->action) = explode(':', $event['alarms']);
-            $val = libcalendaring::parse_alaram_value($trigger);
-            if ($val[1]) $va->add('TRIGGER', preg_replace('/^([-+])(.+)/', '\\1PT\\2', $trigger));
-            else         $va->add('TRIGGER', gmdate('Ymd\THis\Z', $val[0]), array('VALUE' => 'DATE-TIME'));
-            $ve->add($va);
-        }
-
-        if ($event['organizer']) {
-            unset($event['organizer']['rsvp'], $event['organizer']['role']);
-            $ve->add('ORGANIZER', 'mailto:' . $event['organizer']['email'], VObjectUtils::map_keys($event['organizer'], $this->attendee_keymap));
-        }
-
-        foreach ((array)$event['attendees'] as $attendee) {
-            if ($event['organizer'] && $attendee['role'] == 'ORGANIZER')
-                continue;
-            $attendee['rsvp'] = $attendee['rsvp'] ? 'TRUE' : null;
-            $ve->add('ATTENDEE', 'mailto:' . $attendee['email'], VObjectUtils::map_keys($attendee, $this->attendee_keymap));
-        }
-
-        foreach ((array)$event['_attachments'] as $attachment) {
-            if ($this->useragent == 'ical') {
-                // embed attachments for iCal
-                $ve->add('ATTACH',
-                    base64_encode($storage->get_attachment($event['uid'], $attachment['id'])),
-                    array('FMTTYPE' => $attachment['mimetype'], 'ENCODING' => 'BASE64', 'VALUE' => 'BINARY'));
-            }
-            else {
-                // list attachments as absolute URIs
-                $ve->add('ATTACH',
-                    $base_uri . ':attachment:' . $attachment['id'] . ':' . urlencode($attachment['name']),
-                    array('FMTTYPE' => $attachment['mimetype'], 'VALUE' => 'URI'));
-            }
-        }
-
-        foreach ((array)$event['url'] as $url) {
-            $ve->add('URL', $url);
-        }
-
-        foreach ((array)$event['links'] as $uri) {
-            $ve->add('ATTACH', $uri);
-        }
-
-        if (!empty($event['parent_id'])) {
-            $ve->add('RELATED-TO', $event['parent_id'], array('RELTYPE' => 'PARENT'));
-        }
-
-        // add custom properties
-        foreach ((array)$event['x-custom'] as $prop) {
-            $ve->add($prop[0], $prop[1]);
-        }
-
-        // we're dealing with a recurrence exception here, so no final serialization is desired
-        if ($recurrence_id)
-            return $ve;
-
-        // encapsulate in VCALENDAR container
-        $vcal = VObject\Component::create('VCALENDAR');
-        $vcal->version = '2.0';
-        $vcal->prodid = '-//Kolab DAV Server ' .KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . CalDAV\Version::VERSION . '//EN';
-        $vcal->calscale = 'GREGORIAN';
-        $vcal->add($ve);
-
-        // append recurrence exceptions
-        if ($event['recurrence']['EXCEPTIONS']) {
-            foreach ($event['recurrence']['EXCEPTIONS'] as $ex) {
-                $exdate = clone $event['start'];
-                $exdate->setDate($ex['start']->format('Y'), $ex['start']->format('n'), $ex['start']->format('j'));
-                $recurrence_id = VObjectUtils::datetime_prop('RECURRENCE-ID', $exdate);
-                // if ($ex['thisandfuture'])  // not supported by any client :-(
-                //    $recurrence_id->add('RANGE', 'THISANDFUTURE');
-                $vcal->add($this->_to_ical($ex, $base_uri, $storage, $recurrence_id));
-            }
-        }
-
-
-        return $vcal->serialize();
+        return $ical->export(array($event), null, false, $get_attachment);
     }
-
 
     /**
      * Generate an Etag string from the given event data

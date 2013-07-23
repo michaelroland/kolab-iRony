@@ -594,7 +594,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         $vc = VObject\Component::create('VCARD');
         $vc->version = '3.0';
-        $vc->prodid = '-//Kolab DAV Server ' .KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . CardDAV\Version::VERSION . '//EN';
+        $vc->prodid = '-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
 
         $vc->add('UID', $contact['uid']);
         $vc->add('FN', $contact['name']);
