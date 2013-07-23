@@ -793,8 +793,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $event['allday'] = true;
         }
 
-        // shift end-date by one day (except Thunderbird)
-        if ($event['allday'] && is_object($event['end']) && !$this->useragent == 'lightning') {
+        // shift end-date by one day
+        if ($event['allday'] && is_object($event['end'])) {
             $event['end']->sub(new \DateInterval('PT23H'));
         }
 
@@ -859,6 +859,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $type = $event['_type'] ?: 'event';
         $ve = VObject\Component::create($this->type_component_map[$type]);
         $ve->add('UID', $event['uid']);
+
+        // all-day events end the next day
+        if ($event['allday'] && !empty($event['end'])) {
+            $event['end'] = clone $event['end'];
+            $event['end']->add(new \DateInterval('P1D'));
+            $event['end']->_dateonly = true;
+        }
 
         if (!empty($event['created']))
             $ve->add(VObjectUtils::datetime_prop('CREATED', $event['created'], true));
