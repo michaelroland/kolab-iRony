@@ -463,7 +463,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         // process attachments
-        if (/* user agent known to handle attachments inline */ FALSE) {
+        if (/* user agent known to handle attachments inline */ !empty($object['attachments'])) {
             $object['_attachments'] = $object['attachments'];
 
             // mark all existing attachments as deleted (update is always absolute)
@@ -642,15 +642,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $ical = libcalendaring::get_ical();
         $ical->set_prodid('-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN');
 
-        // embed attachments for iCal
-        if ($this->useragent == 'ical') {
-            $get_attachment = function($id, $event) use ($storage) {
-                return $storage->get_attachment($event['id'], $id);
-            };
-        }
-        else {   // list attachments as absolute URIs
-            $get_attachment = null;
+        // list attachments as absolute URIs for Thunderbird
+        if ($this->useragent == 'lightning') {
             $ical->set_attach_uri($base_uri . ':attachment:{{id}}:{{name}}');
+            $get_attachment = null;
+        }
+        else {   // embed attachments for others
+            $get_attachment = function($id, $event) use ($storage) {
+                return $storage->get_attachment($event['uid'], $id);
+            };
         }
 
         return $ical->export(array($event), null, false, $get_attachment);
