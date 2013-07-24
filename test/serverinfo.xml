@@ -409,7 +409,7 @@
 			<!-- user id -->
 			<substitution>
 				<key>$userid%d:</key>
-				<value>dav.user%02d@brotherli.ch</value>
+				<value>dav.user%02d@example.org</value>
 			</substitution>
 			<!-- user guid -->
 			<substitution>

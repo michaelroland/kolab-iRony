@@ -40,7 +40,7 @@ as well as the values of the following substitution keys:
 
 Make sure that two users matching the patterns of $userid%d and subsequent do
 exist on the Kolab server that is to be tested with. Default user accounts
-are set to dav.user01@<domain> and dav.user02@<domain> with password "12345".
+are set to dav.user01@example.org and dav.user02@example.org with password "12345".
 
 
 Running the Tests
