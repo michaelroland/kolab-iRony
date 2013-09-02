@@ -55,7 +55,7 @@ $rcube->write_log('davdebug', $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUE
     join("\n", $http_headers) . "\n\n" . $http_body);
 
 // fix URIs in request body
-$http_body = preg_replace("!(<d:href>$base_uri)!i", '\\1index.php/', $http_body);
+$http_body = preg_replace("!(<\w+:href[^>]*>$base_uri)!i", '\\1index.php/', $http_body);
 $http_headers['Content-Length'] = "Content-Length: " . strlen($http_body);
 
 // forward the full request to index.php
