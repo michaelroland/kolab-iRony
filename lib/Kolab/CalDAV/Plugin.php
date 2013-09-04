@@ -38,6 +38,37 @@ class Plugin extends CalDAV\Plugin
     public static $parsed_vcalendar;
     public static $parsed_vevent;
 
+    // allow the backend to force a redirect Location
+    public static $redirect_basename;
+
+    /**
+     * Initializes the plugin
+     *
+     * @param DAV\Server $server
+     * @return void
+     */
+    public function initialize(DAV\Server $server)
+    {
+        parent::initialize($server);
+
+        $server->subscribeEvent('afterCreateFile', array($this, 'afterWriteContent'));
+        $server->subscribeEvent('afterWriteContent', array($this, 'afterWriteContent'));
+    }
+
+    /**
+     * Inject some additional HTTP response headers
+     */
+    public function afterWriteContent($uri, $node)
+    {
+        // send Location: header to corrected URI
+        if (self::$redirect_basename) {
+            $path = explode('/', $uri);
+            array_pop($path);
+            array_push($path, self::$redirect_basename);
+            $this->server->httpResponse->setHeader('Location', $this->server->getBaseUri() . join('/', array_map('urlencode', $path)));
+            self::$redirect_basename = null;
+        }
+    }
 
     /**
      * Checks if the submitted iCalendar data is in fact, valid.

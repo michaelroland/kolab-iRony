@@ -92,6 +92,7 @@ header($result_headers, true);
 // forward response headers
 unset($response_headers['Transfer-Encoding']);
 foreach ($response_headers as $hdr => $value) {
+    $value = str_replace('index.php/', '', $value);
     $result_headers .= "\n$hdr: " . $value;
     header("$hdr: " . $value, true);
 }

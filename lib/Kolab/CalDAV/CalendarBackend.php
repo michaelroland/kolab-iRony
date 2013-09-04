@@ -348,7 +348,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             return array(
                 'id' => $event['uid'],
                 'uri' => $event['uid'] . '.ics',
-                'lastmodified' => $event['changed']->format('U'),
+                'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
                 'calendarid' => $calendarId,
                 'calendardata' => $this->_to_ical($event, $base_uri, $storage),
                 'etag' => self::_get_etag($event),
@@ -383,33 +383,34 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->parse_calendar_data($calendarData, $uid);
 
-        if (empty($object)) {
+        if (empty($object) || empty($object['uid'])) {
             throw new DAV\Exception('Parse error: not a valid iCalendar 2.0 object');
         }
 
-        if ($object['uid'] == $uid) {
-            // map attachments attribute
-            $object['_attachments'] = $object['attachments'];
-
-            $success = $storage->save($object, $object['_type']);
-            if (!$success) {
-                rcube::raise_error(array(
-                    'code' => 600, 'type' => 'php',
-                    'file' => __FILE__, 'line' => __LINE__,
-                    'message' => "Error saving $object[_type] object to Kolab server"),
-                    true, false);
-
-                throw new DAV\Exception('Error saving calendar object to backend');
-            }
+        // if URI doesn't match the content's UID, the object might already exist!
+        if ($object['uid'] != $uid && $storage->get_object($object['uid'])) {
+            $objectUri = $object['uid'] . '.ics';
+            Plugin::$redirect_basename = $objectUri;
+            return $this->updateCalendarObject($calendarId, $objectUri, $calendarData);
         }
-        else {
+
+        // map attachments attribute
+        $object['_attachments'] = $object['attachments'];
+
+        $success = $storage->save($object, $object['_type']);
+        if (!$success) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
                 'file' => __FILE__, 'line' => __LINE__,
-                'message' => "Error creating calendar object: UID doesn't match object URI"),
+                'message' => "Error saving $object[_type] object to Kolab server"),
                 true, false);
 
-             throw new DAV\Exception\NotFound("UID doesn't match object URI");
+            throw new DAV\Exception('Error saving calendar object to backend');
+        }
+
+        // send Location: header if URI doesn't match object's UID (Bug #2109)
+        if ($object['uid'] != $uid) {
+            Plugin::$redirect_basename = $object['uid'].'.ics';
         }
 
         // return new Etag
@@ -481,6 +482,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 'message' => "Error saving event object to Kolab server"),
                 true, false);
 
+            Plugin::$redirect_basename = null;
             throw new DAV\Exception('Error saving event object to backend');
         }
 

@@ -344,26 +344,31 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $storage = $this->get_storage_folder($addressBookId);
         $object = $this->parse_vcard($cardData, $uid);
 
-        if ($object['uid'] == $uid) {
-            $success = $storage->save($object, $object['_type']);
-            if (!$success) {
-                rcube::raise_error(array(
-                    'code' => 600, 'type' => 'php',
-                    'file' => __FILE__, 'line' => __LINE__,
-                    'message' => "Error saving contact object to Kolab server"),
-                    true, false);
-
-                throw new DAV\Exception('Error saving contact card to backend');
-            }
+        if (empty($object) || empty($object['uid'])) {
+            throw new DAV\Exception('Parse error: not a valid VCard object');
         }
-        else {
+
+        // if URI doesn't match the content's UID, the object might already exist!
+        $cardUri = $object['uid'] . '.vcf';
+        if ($object['uid'] != $uid && $this->getCard($addressBookId, $cardUri)) {
+            Plugin::$redirect_basename = $cardUri;
+            return $this->updateCard($addressBookId, $cardUri, $cardData);
+        }
+
+        $success = $storage->save($object, $object['_type']);
+        if (!$success) {
             rcube::raise_error(array(
                 'code' => 600, 'type' => 'php',
                 'file' => __FILE__, 'line' => __LINE__,
-                'message' => "Error creating contact object: UID doesn't match object URI"),
+                'message' => "Error saving contact object to Kolab server"),
                 true, false);
 
-            throw new DAV\Exception\NotFound("UID doesn't match object URI");
+            throw new DAV\Exception('Error saving contact card to backend');
+        }
+
+        // send Location: header if URI doesn't match object's UID (Bug #2109)
+        if ($object['uid'] != $uid) {
+            Plugin::$redirect_basename = $cardUri;
         }
 
         // return new Etag
@@ -445,6 +450,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'message' => "Error saving contact object to Kolab server"),
                 true, false);
 
+            Plugin::$redirect_basename = null;
             throw new DAV\Exception('Error saving contact card to backend');
         }
 
