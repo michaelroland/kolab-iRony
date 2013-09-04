@@ -284,7 +284,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 $events[] = array(
                     'id' => $event['uid'],
                     'uri' => $event['uid'] . '.ics',
-                    'lastmodified' => $event['changed']->format('U'),
+                    'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
                     'calendarid' => $calendarId,
                     'etag' => self::_get_etag($event),
                     'size' => $event['_size'],
@@ -396,6 +396,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         // map attachments attribute
         $object['_attachments'] = $object['attachments'];
+        unset($object['attachments']);
 
         $success = $storage->save($object, $object['_type']);
         if (!$success) {
@@ -466,6 +467,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // process attachments
         if (/* user agent known to handle attachments inline */ !empty($object['attachments'])) {
             $object['_attachments'] = $object['attachments'];
+            unset($object['attachments']);
 
             // mark all existing attachments as deleted (update is always absolute)
             foreach ($old['_attachments'] as $key => $attach) {
