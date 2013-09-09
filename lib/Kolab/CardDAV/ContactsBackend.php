@@ -297,7 +297,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
         else {
             $storage = $this->get_storage_folder($addressBookId);
-            $contact = $storage->get_object($uid);
+            $contact = $storage->get_object($uid, '*');
         }
 
         if ($contact) {
