@@ -498,6 +498,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $ua_classes = array(
             'thunderbird' => 'Thunderbird/\d',
             'macosx'      => '(Mac OS X/.+)?AddressBook/\d(.+\sCardDAVPlugin)?',
+            'ios'         => '(iOS/\d|[Dd]ata[Aa]ccessd/\d)',
         );
 
         foreach ($ua_classes as $class => $regex) {
@@ -535,6 +536,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         $rights = $storage->get_myrights();
         return (strpos($rights, 'i') !== false || $storage->get_namespace() == 'personal');
+    }
+
+    /**
+     * Helper method to determine whether the connected client is an Apple device
+     */
+    private function is_apple()
+    {
+        return $this->useragent == 'macosx' || $this->useragent == 'ios';
     }
 
 
@@ -608,11 +617,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         // distlists are KIND:group
         if ($contact['_type'] == 'distribution-list') {
             // group cards are actually vcard version 4
-            if ($this->useragent != 'macosx')
+            if (!$this->is_apple()) {
                 $vc->version = '4.0';
+                $prop_prefix = '';
+            }
+            else {
+                // prefix group properties for Apple
+                $prop_prefix = 'X-ADDRESSBOOKSERVER-';
+            }
 
-            // prefix group properties for Apple
-            $prop_prefix = $this->useragent == 'macosx' ? 'X-ADDRESSBOOKSERVER-' : '';
             $vc->add($prop_prefix . 'KIND', 'group');
 
             foreach ((array)$contact['member'] as $member) {
@@ -728,7 +741,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         // send anniversary field as itemN.X-ABDATE
-        if ($this->useragent == 'macosx' && !empty($contact['anniversary'])) {
+        if ($this->is_apple() && !empty($contact['anniversary'])) {
             $vc->add(VObjectUtils::datetime_prop('iRony.X-ABDATE', $contact['anniversary'], false));
             $vc->add('iRony.X-ABLabel', '_$!<Anniversary>!$_');
             unset($vc->ANNIVERSARY);
