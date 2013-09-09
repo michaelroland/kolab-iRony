@@ -686,12 +686,24 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['gender']))
             $vc->add('SEX', $contact['gender']);
 
+        // convert date cols to DateTime objects
+        foreach (array('birthday','anniversary') as $key) {
+            if (!empty($contact[$key]) && !$contact[$key] instanceof \DateTime) {
+                try {
+                    $contact[$key] = new \DateTime('@' . \rcube_utils::strtotime($contact[$key]));
+                }
+                catch (\Exception $e) {
+                    $contact[$key] = null;
+                }
+            }
+        }
+
         if (!empty($contact['birthday']) && $contact['birthday'] instanceof \DateTime) {
             // FIXME: Date values are ignored by Thunderbird
             $contact['birthday']->_dateonly = true;
             $vc->add(VObjectUtils::datetime_prop('BDAY', $contact['birthday'], false));
         }
-        if (!empty($contact['anniversary']) && $contact['birthday'] instanceof \DateTime) {
+        if (!empty($contact['anniversary']) && $contact['anniversary'] instanceof \DateTime) {
             $contact['anniversary']->_dateonly = true;
             $vc->add(VObjectUtils::datetime_prop('ANNIVERSARY', $contact['anniversary'], false));
         }
@@ -713,6 +725,13 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         // add custom properties
         foreach ((array)$contact['x-custom'] as $prop) {
             $vc->add($prop[0], $prop[1]);
+        }
+
+        // send anniversary field as itemN.X-ABDATE
+        if ($this->useragent == 'macosx' && !empty($contact['anniversary'])) {
+            $vc->add(VObjectUtils::datetime_prop('iRony.X-ABDATE', $contact['anniversary'], false));
+            $vc->add('iRony.X-ABLabel', '_$!<Anniversary>!$_');
+            unset($vc->ANNIVERSARY);
         }
 
         if (!empty($contact['changed']))
@@ -740,6 +759,18 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             catch (\Exception $e) {
                 try { $contact['changed'] = new \DateTime(strval($vc->REV)); }
                 catch (\Exception $e) { }
+            }
+        }
+
+        // map Apple proprietary anniversary field to regular field
+        foreach ($vc->select('X-ABDATE') as $prop) {
+            $labelkey = $prop->group ? $prop->group . '.X-ABLABEL' : 'X-ABLABEL';
+            $labels = $vc->select($labelkey);
+            if (!empty($labels) && ($label = reset($labels)) && strtolower(trim($label->value, '_$!<>')) == 'anniversary') {
+                $prop->group = null;
+                $prop->name = 'ANNIVERSARY';
+                unset($vc->{$labelkey});
+                break;
             }
         }
 
@@ -870,8 +901,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 case 'CUSTOM3':
                 case 'CUSTOM4':
                 default:
-                    if (substr($prop->name, 0, 2) == 'X-' || substr($prop->name, 0, 6) == 'CUSTOM')
-                        $contact['x-custom'][] = array($prop->name, strval($prop->value));
+                    if (substr($prop->name, 0, 2) == 'X-' || substr($prop->name, 0, 6) == 'CUSTOM') {
+                        $prefix = $prop->group ? $prop->group . '.' : '';
+                        $contact['x-custom'][] = array($prefix . $prop->name, strval($prop->value));
+                    }
                     break;
             }
         }
