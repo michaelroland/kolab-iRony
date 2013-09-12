@@ -645,6 +645,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         $ical = libcalendaring::get_ical();
         $ical->set_prodid('-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN');
+        $ical->set_agent($this->useragent == 'ical' ? 'Apple' : '');
 
         // list attachments as absolute URIs for Thunderbird
         if ($this->useragent == 'lightning') {
