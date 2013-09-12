@@ -52,10 +52,10 @@ function exception_error_handler($errno, $errstr, $errfile, $errline ) {
 }
 //set_error_handler("exception_error_handler");
 
-// use composer's autoloader for both dependencies and local lib
+// use composer's autoloader for dependencies
 require_once KOLAB_DAV_ROOT . '/vendor/autoload.php';
 
-// load the Roundcube framework
+// load the Roundcube framework with its autoloader
 require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
 
 // Roundcube framework initialization
@@ -93,6 +93,15 @@ foreach (array('CALDAV','CARDDAV','WEBDAV') as $skey) {
 // no config means *all* services
 if (empty($services))
     $services = array('CALDAV' => 1, 'CARDDAV' => 1, 'WEBDAV' => 1);
+
+// add chwala directories to include path for autoloading
+if ($services['WEBDAV']) {
+    $include_path  = ini_get('include_path') . PATH_SEPARATOR;
+    $include_path .= KOLAB_DAV_ROOT . '/lib/FileAPI' . PATH_SEPARATOR;
+    $include_path .= KOLAB_DAV_ROOT . '/lib/FileAPI/kolab' . PATH_SEPARATOR;
+    $include_path .= KOLAB_DAV_ROOT . '/lib/FileAPI/ext';
+    set_include_path($include_path);
+}
 
 // Build the directory tree
 // This is an array which contains the 'top-level' directories in the WebDAV server.
