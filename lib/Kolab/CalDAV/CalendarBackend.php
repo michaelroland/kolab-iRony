@@ -106,7 +106,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             return $this->folders[$id];
         }
         else {
-            return DAVBackend::get_storage_folder($id, 'event');
+            return DAVBackend::get_storage_folder($id, '');
         }
     }
 
