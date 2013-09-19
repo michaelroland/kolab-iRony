@@ -762,9 +762,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private function _to_array($vc)
     {
         $contact = array(
+            '_type' => 'contact',
             'uid'  => strval($vc->UID),
             'name' => strval($vc->FN),
-            '_type' => 'contact',
+            'x-custom' => array(),
         );
 
         if ($vc->REV) {
