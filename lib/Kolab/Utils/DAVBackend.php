@@ -47,50 +47,11 @@ class DAVBackend
     public static function get_storage_folder($uid, $type)
     {
         foreach (kolab_storage::get_folders($type) as $folder) {
-            if (self::get_uid($folder) == $uid)
+            if ($folder->get_uid() == $uid)
                 return $folder;
         }
 
         return null;
-    }
-
-    /**
-     * Helper method to extract folder UID metadata
-     *
-     * @param object \kolab_storage_folder Folder to get UID for
-     * @return string Folder's UID
-     */
-    public static function get_uid($folder)
-    {
-        // UID is defined in folder METADATA
-        $metakeys = array(self::IMAP_UID_KEY, self::IMAP_UID_KEY_PRIVATE, self::IMAP_UID_KEY_CYRUS);
-        $metadata = $folder->get_metadata($metakeys);
-        foreach ($metakeys as $key) {
-            if (($uid = $metadata[$key])) {
-                return $uid;
-            }
-        }
-
-        // generate a folder UID and set it to IMAP
-        $uid = rtrim(chunk_split(md5($folder->name . $folder->get_owner()), 12, '-'), '-');
-        self::set_uid($folder, $uid);
-
-        return $uid;
-    }
-
-    /**
-     * Helper method to set an UID value to the given IMAP folder instance
-     *
-     * @param object \kolab_storage_folder Folder to set UID
-     * @param string Folder's UID
-     * @return boolean True on succes, False on failure
-     */
-    public static function set_uid($folder, $uid)
-    {
-        if (!($success = $folder->set_metadata(array(self::IMAP_UID_KEY => $uid)))) {
-            $success = $folder->set_metadata(array(self::IMAP_UID_KEY_PRIVATE => $uid));
-        }
-        return $success;
     }
 
     /**
@@ -243,7 +204,7 @@ class DAVBackend
 
         // save UID in folder annotations
         if ($folder = kolab_storage::get_folder($fname)) {
-            self::set_uid($folder, $uid);
+            $folder->set_uid($uid);
         }
 
         return $uid;
