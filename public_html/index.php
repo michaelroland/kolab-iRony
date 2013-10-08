@@ -5,7 +5,7 @@
  *
  * This is the public API to provide *DAV-based access to the Kolab Groupware backend
  *
- * @version 0.2.0
+ * @version 0.2.2
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
  * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
@@ -53,7 +53,8 @@ function exception_error_handler($errno, $errstr, $errfile, $errline ) {
 //set_error_handler("exception_error_handler");
 
 // use composer's autoloader for dependencies
-require_once KOLAB_DAV_ROOT . '/vendor/autoload.php';
+$loader = require_once(KOLAB_DAV_ROOT . '/vendor/autoload.php');
+$loader->setUseIncludePath(true);  // enable include_path to load PEAR classes from their default location
 
 // load the Roundcube framework with its autoloader
 require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';

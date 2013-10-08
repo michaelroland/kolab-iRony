@@ -49,7 +49,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./composer.phar install
+./composer.phar install --no-dev
 
 if [ $? -ne 0 ]; then
     echo "Running ./composer.phar install failed... Bye!"
