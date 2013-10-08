@@ -39,6 +39,19 @@ if [ -f "./composer.phar" ]; then
 fi
 
 cp -a ${chwala_dir}/lib lib/FileAPI
+
+pushd lib/FileAPI/ext/
+rm -rf \
+    Auth/ \
+    HTTP/ \
+    Mail/ \
+    Net/  \
+    PEAR5.php \
+    PEAR.php \
+    Roundcube/
+
+popd
+
 cp -a ${roundcube_dir}/program/lib/Roundcube/ lib/Roundcube
 cp -a ${roundcube_plugins_dir}/plugins/ lib/plugins
 
