@@ -885,8 +885,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'PHOTO':
-                    $param = $prop->parameters[0];
-                    if ($param->value && strtolower($param->value) == 'b' || strtolower($param->name) == 'base64') {
+                    $param = $prop->offsetGet('encoding') ?: $prop->parameters[0];
+                    if ($param->value && (strtolower($param->value) == 'b' || strtolower($param->value) == 'base64') || strtolower($param->name) == 'base64') {
                         $contact['photo'] = base64_decode($prop->value);
                     }
                     break;
