@@ -14,7 +14,7 @@
 	},
 	"require": {
 		"php": ">=5.3.3",
-		"sabre/dav" : "1.8.*"
+		"sabre/dav" : "1.8.7"
 	},
 	"require-dev": {
 		"pear-pear/Mail_Mime": ">=1.8.1",
