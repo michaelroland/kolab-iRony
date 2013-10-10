@@ -835,8 +835,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'ADR':
-                    $type = $prop->offsetGet('type');
-                    $adr = array('type' => strtolower($type));
+                    $type = $prop->offsetGet('type') ?: $prop->parameters[0];
+                    $adr = array('type' => strtolower($type->value ?: $type->name));
                     list(,, $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']) = $prop->getParts();
                     $contact['address'][] = $adr;
                     break;
