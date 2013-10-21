@@ -71,7 +71,12 @@ $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins($plugins, $required);
 
 // convenience function, you know it well :-)
-function console() { call_user_func_array(array('rcube', 'console'), func_get_args()); }
+function console()
+{
+    global $rcube;
+    if ($rcube->config->get('kolab_dav_console', false))
+        call_user_func_array(array('rcube', 'console'), func_get_args());
+}
 
 
 // Make sure this setting is turned on and reflects the root url of the *DAV server.

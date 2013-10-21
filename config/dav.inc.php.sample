@@ -39,3 +39,7 @@ $rcmail_config['kolabdav_auth_cache'] = 'apc';
 
 // lifetime of the Auth cache, possible units: s, m, h, d, w
 $rcmail_config['kolabdav_auth_cache_ttl'] = '1h';
+
+// enable debug console showing the internal function calls triggered
+// by http requests. This will write log to /var/log/iRony/console
+$rcmail_config['kolab_dav_console'] = false;
