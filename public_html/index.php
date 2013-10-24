@@ -5,7 +5,7 @@
  *
  * This is the public API to provide *DAV-based access to the Kolab Groupware backend
  *
- * @version 0.2.2
+ * @version 0.3.0-beta
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
  * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
@@ -26,7 +26,7 @@
 
 // define some environment variables used throughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
-define('KOLAB_DAV_VERSION', '0.2.0');
+define('KOLAB_DAV_VERSION', '0.3.0-beta');
 define('KOLAB_DAV_START', microtime(true));
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');

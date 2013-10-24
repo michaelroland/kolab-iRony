@@ -111,6 +111,32 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     }
 
     /**
+     * Getter for the default calendar resource
+     */
+    public function get_default_calendar()
+    {
+        $folders = kolab_storage::get_folders('event');
+        $default = null;
+
+        foreach ($folders as $folder) {
+            if (!$default || $folder->default) {
+                $default = $folder;
+            }
+        }
+
+        if ($default) {
+            $id = $default->get_uid();
+            return array(
+                'id' => $id,
+                'uri' => $id,
+                '{DAV:}displayname' => html_entity_decode($default->get_name(), ENT_COMPAT, RCUBE_CHARSET),
+            );
+        }
+
+        return false;
+    }
+
+    /**
      * Returns a list of calendars for a principal.
      *
      * Every calendars is an array with the following keys:
@@ -572,6 +598,41 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
       }
 
       return $results;
+    }
+
+    /**
+     * Extract scheduling objects from iTip messages in INBOX
+     *
+     * TODO: Improve this with caching or a dedicated scheduling inbox container
+     */
+    public function getSchedulingInboxObjects()
+    {
+        console(__METHOD__);
+
+        $objects = array();
+        $imap = rcube::get_instance()->get_storage();
+        $index = $imap->search_once('INBOX', 'OR OR OR HEADER CONTENT-TYPE text/calendar HEADER CONTENT-TYPE application/ics HEADER CONTENT-TYPE multipart/mixed HEADER CONTENT-TYPE multipart/alternative');
+
+        foreach ($index->get() as $msguid) {
+            $message = new \rcube_message($msguid, 'INBOX');
+            foreach ((array)$message->mime_parts as $part) {
+                if (VObjectUtils::is_vcalendar($part) || $part->ctype_parameters['method']) {
+                    $data = $message->get_part_content($part->mime_id);
+                    $event = $this->parse_calendar_data($data, '-');
+                    $objects[] = array(
+                        'id' => $event['uid'],
+                        'uri' => $event['uid'] . '.ics',
+                        'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
+                        'calendarid' => 'inbox',
+                        'calendardata' => $data,
+                        'etag' => self::_get_etag($event),
+                    );
+                    break;
+                }
+            }
+        }
+
+        return $objects;
     }
 
     /**

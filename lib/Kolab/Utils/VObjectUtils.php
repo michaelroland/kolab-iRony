@@ -57,4 +57,18 @@ class VObjectUtils
         return $out;
     }
 
+    /**
+     * Checks if specified message part is a vcalendar data
+     *
+     * @param rcube_message_part Part object
+     * @return boolean True if part is of type vcard
+     */
+    public static function is_vcalendar($part)
+    {
+        return (
+            in_array($part->mimetype, array('text/calendar', 'text/x-vcalendar', 'application/ics')) ||
+            // Apple sends files as application/x-any (!?)
+            ($part->mimetype == 'application/x-any' && $part->filename && preg_match('/\.ics$/i', $part->filename))
+        );
+    }
 }

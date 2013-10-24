@@ -25,16 +25,17 @@ namespace Kolab\CalDAV;
 
 use Sabre\DAV;
 use Sabre\DAVACL;
+use Sabre\CalDAV;
 use Sabre\CalDAV\Backend;
-use Sabre\CalDAV\Schedule;
 use Kolab\CalDAV\Calendar;
 
 /**
  * The UserCalenders class contains all calendars associated to one user
  *
  */
-class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtendedCollection, DAVACL\IACL
+class UserCalendars extends CalDAV\UserCalendars implements DAV\IExtendedCollection, DAVACL\IACL
 {
+    private $inbox;
     private $outbox;
 
     /**
@@ -62,7 +63,10 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
         }
 
         // add support for scheduling AKA free/busy
-        $objs[] = new Schedule\Outbox($this->principalInfo['uri']);
+        $this->inbox = new Schedule\Inbox($this->caldavBackend, $this->principalInfo['uri']);
+        $this->outbox = new CalDAV\Schedule\Outbox($this->principalInfo['uri']);
+        $objs[] = $this->inbox;
+        $objs[] = $this->outbox;
 
         // TODO: add notification support (check with clients first, if anybody supports it)
         if ($this->caldavBackend instanceof Backend\NotificationSupport) {
@@ -80,8 +84,11 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
      */
     public function getChild($name)
     {
+        if ($name == 'inbox') {
+            return $this->inbox ?: ($this->inbox = new Schedule\Inbox($this->caldavBackend, $this->principalInfo['uri']));
+        }
         if ($name == 'outbox') {
-            return new Schedule\Outbox($this->principalInfo['uri']);
+            return $this->outbox ?: ($this->outbox = new CalDAV\Schedule\Outbox($this->principalInfo['uri']));
         }
         if ($calendar = $this->caldavBackend->getCalendarByName($name)) {
             $calendar['principaluri'] = $this->principalInfo['uri'];

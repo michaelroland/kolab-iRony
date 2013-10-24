@@ -24,6 +24,7 @@
 namespace Kolab\CalDAV;
 
 use Sabre\DAV;
+use Sabre\DAVACL;
 use Sabre\CalDAV;
 use Sabre\VObject;
 use Kolab\DAV\Auth\HTTPBasic;
@@ -53,6 +54,47 @@ class Plugin extends CalDAV\Plugin
 
         $server->subscribeEvent('afterCreateFile', array($this, 'afterWriteContent'));
         $server->subscribeEvent('afterWriteContent', array($this, 'afterWriteContent'));
+
+        $server->resourceTypeMapping['\\Kolab\\CalDAV\\ScheduleInbox'] = '{urn:ietf:params:xml:ns:caldav}schedule-inbox';
+    }
+
+    /**
+     * beforeGetProperties
+     *
+     * This method handler is invoked before any after properties for a
+     * resource are fetched. This allows us to add in any CalDAV specific
+     * properties.
+     *
+     * @param string $path
+     * @param DAV\INode $node
+     * @param array $requestedProperties
+     * @param array $returnedProperties
+     * @return void
+     */
+    public function beforeGetProperties($path, DAV\INode $node, &$requestedProperties, &$returnedProperties)
+    {
+        // schedule-inbox-URL property
+        if ($node instanceof DAVACL\IPrincipal) {
+            $scheduleProp = '{' . self::NS_CALDAV . '}schedule-inbox-URL';
+            if (in_array($scheduleProp, $requestedProperties)) {
+                $principalId = $node->getName();
+                $inboxPath = self::CALENDAR_ROOT . '/' . $principalId . '/inbox';
+
+                unset($requestedProperties[array_search($scheduleProp, $requestedProperties)]);
+                $returnedProperties[200][$scheduleProp] = new DAV\Property\Href($inboxPath);
+            }
+        }
+
+        // schedule-default-calendar-URL
+        if ($node instanceof Schedule\Inbox) {
+            $defaultCalendarProp = '{' . self::NS_CALDAV . '}schedule-default-calendar-URL';
+            if (in_array($defaultCalendarProp, $requestedProperties) && ($calendarURL = $node->schedule_default_calendar_url())) {
+                unset($requestedProperties[array_search($defaultCalendarProp, $requestedProperties)]);
+                $returnedProperties[200][$defaultCalendarProp] = new DAV\Property\Href(self::CALENDAR_ROOT . '/' . $calendarURL);
+            }
+        }
+
+        parent::beforeGetProperties($path, $node, $requestedProperties, $returnedProperties);
     }
 
     /**
