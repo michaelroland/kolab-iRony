@@ -558,8 +558,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
           if ($filter['name'] != 'VEVENT')
               continue;
           if (is_array($filter['time-range'])) {
-              $query[] = array('dtstart', '<=', $filter['time-range']['end']);
-              $query[] = array('dtend',   '>=', $filter['time-range']['start']);
+              if (!empty($filter['time-range']['end'])) {
+                  $query[] = array('dtstart', '<=', $filter['time-range']['end']);
+              }
+              if (!empty($filter['time-range']['start'])) {
+                  $query[] = array('dtend',   '>=', $filter['time-range']['start']);
+              }
           }
       }
 
