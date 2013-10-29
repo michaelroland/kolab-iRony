@@ -36,9 +36,6 @@ define('RCUBE_PLUGINS_DIR',  KOLAB_DAV_ROOT . '/lib/plugins/');
 // suppress error notices
 ini_set('error_reporting', E_ALL &~ E_NOTICE &~ E_STRICT);
 
-// UTC is easy to work with, and usually recommended for any application.
-date_default_timezone_set('UTC');
-
 
 /**
  * Mapping PHP errors to exceptions.
