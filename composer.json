@@ -11,6 +11,10 @@
 		{
 			"type": "pear",
 			"url": "http://pear.php.net/"
+		},
+		{
+			"type": "vcs",
+			"url": "https://github.com/thomascube/sabre-vobject.git"
 		}
 	],
 	"autoload": {
