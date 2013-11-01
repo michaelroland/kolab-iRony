@@ -145,14 +145,14 @@ else if ($services['WEBDAV']) {
 $server = new \Sabre\DAV\Server($nodes);
 $server->setBaseUri($base_uri);
 
-// register some plugins
-$server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
-$server->addPlugin(new \Sabre\DAVACL\Plugin());
-
 // enable logger
 if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
     $server->addPlugin(new \Kolab\Utils\DAVLogger());
 }
+
+// register some plugins
+$server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
+$server->addPlugin(new \Sabre\DAVACL\Plugin());
 
 if ($services['CALDAV']) {
     $caldav_plugin = new \Kolab\CalDAV\Plugin();
