@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Utility class prividing a simple API to PHP's APC cache
+ * Utility class providing a simple API to PHP's APC cache
  *
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *

@@ -67,12 +67,31 @@ $required = array('libkolab', 'libcalendaring');
 $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins($plugins, $required);
 
+
 // convenience function, you know it well :-)
 function console()
 {
     global $rcube;
-    if ($rcube->config->get('kolab_dav_console', false))
+
+    // write to global console log
+    if ($rcube->config->get('kolabdav_console', false)) {
         call_user_func_array(array('rcube', 'console'), func_get_args());
+    }
+
+    // dump console data per user
+    if ($rcube->config->get('kolabdav_user_debug', false)) {
+        $uname = \Kolab\DAV\Auth\HTTPBasic::$current_user;
+        $log_dir = $rcube->config->get('log_dir', RCUBE_INSTALL_PATH . 'logs');
+
+        if ($uname && $log_dir && is_writable($log_dir . '/' . $uname)) {
+            $msg = array();
+            foreach (func_get_args() as $arg) {
+                $msg[] = !is_string($arg) ? var_export($arg, true) : $arg;
+            }
+
+            rcube::write_log($uname . '/console', join(";\n", $msg));
+        }
+    }
 }
 
 
@@ -140,6 +159,11 @@ $server->setBaseUri($base_uri);
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
 
+// enable logger
+if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
+    $server->addPlugin(new \Kolab\Utils\DAVLogger());
+}
+
 if ($services['CALDAV']) {
     $caldav_plugin = new \Kolab\CalDAV\Plugin();
     $caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
@@ -168,3 +192,5 @@ if (getenv('DAVBROWSER')) {
 // finally, process the request
 $server->exec();
 
+// trigger log
+$server->broadcastEvent('exit', array());
