@@ -47,7 +47,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     private $folders;
     private $aliases;
     private $useragent;
-    private $type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
 
     /**
      * Read available calendar folders from server
@@ -62,6 +61,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $folders = array_merge(kolab_storage::get_folders('event'), kolab_storage::get_folders('task'));
         $this->calendars = $this->folders = $this->aliases = array();
 
+        $order = 1;
         foreach (kolab_storage::sort_folders($folders) as $folder) {
             $id = $folder->get_uid();
             $this->folders[$id] = $folder;
@@ -72,8 +72,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://apple.com/ns/ical/}calendar-color' => $folder->get_color(),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
-                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array($this->type_component_map[$folder->type])),
+                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array(DAVBackend::$caldav_type_component_map[$folder->type])),
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
+                '{http://apple.com/ns/ical/}calendar-order' => $order++,
             );
             $this->aliases[$folder->name] = $id;
 
