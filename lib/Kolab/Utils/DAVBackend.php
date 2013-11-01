@@ -37,6 +37,8 @@ class DAVBackend
     const IMAP_UID_KEY_PRIVATE = '/private/vendor/kolab/uniqueid';
     const IMAP_UID_KEY_CYRUS = '/shared/vendor/cmu/cyrus-imapd/uniqueid';
 
+    public static $caldav_type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
+
     /**
      * Getter for a kolab_storage_folder with the given UID
      *
@@ -179,6 +181,14 @@ class DAVBackend
 
                 case '{http://apple.com/ns/ical/}calendar-color':
                     $props['color'] = substr(trim($val, '#'), 0, 6);
+                    break;
+
+                case '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set':
+                    $type_map = array_flip(self::$caldav_type_component_map);
+                    $comp_types = $val->getValue();
+                    $comp_type = $comp_types[0];
+                    if (!empty($type_map[$comp_type]))
+                        $type = $type_map[$comp_type];
                     break;
 
                 case '{urn:ietf:params:xml:ns:caldav}calendar-description':
