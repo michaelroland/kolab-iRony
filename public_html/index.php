@@ -26,7 +26,7 @@
 
 // define some environment variables used throughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
-define('KOLAB_DAV_VERSION', '0.2.3');
+define('KOLAB_DAV_VERSION', '0.2.4');
 define('KOLAB_DAV_START', microtime(true));
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');
@@ -66,8 +66,32 @@ $required = array('libkolab', 'libcalendaring');
 $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins($plugins, $required);
 
+
 // convenience function, you know it well :-)
-function console() { call_user_func_array(array('rcube', 'console'), func_get_args()); }
+function console()
+{
+    global $rcube;
+
+    // write to global console log
+    if ($rcube->config->get('kolabdav_console', false)) {
+        call_user_func_array(array('rcube', 'console'), func_get_args());
+    }
+
+    // dump console data per user
+    if ($rcube->config->get('kolabdav_user_debug', false)) {
+        $uname = \Kolab\DAV\Auth\HTTPBasic::$current_user;
+        $log_dir = $rcube->config->get('log_dir', RCUBE_INSTALL_PATH . 'logs');
+
+        if ($uname && $log_dir && is_writable($log_dir . '/' . $uname)) {
+            $msg = array();
+            foreach (func_get_args() as $arg) {
+                $msg[] = !is_string($arg) ? var_export($arg, true) : $arg;
+            }
+
+            rcube::write_log($uname . '/console', join(";\n", $msg));
+        }
+    }
+}
 
 
 // Make sure this setting is turned on and reflects the root url of the *DAV server.
@@ -121,6 +145,11 @@ else if ($services['WEBDAV']) {
 $server = new \Sabre\DAV\Server($nodes);
 $server->setBaseUri($base_uri);
 
+// enable logger
+if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
+    $server->addPlugin(new \Kolab\Utils\DAVLogger());
+}
+
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
@@ -153,3 +182,5 @@ if (getenv('DAVBROWSER')) {
 // finally, process the request
 $server->exec();
 
+// trigger log
+$server->broadcastEvent('exit', array());

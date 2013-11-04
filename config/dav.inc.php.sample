@@ -22,20 +22,27 @@
  +-------------------------------------------------------------------------+
 */
 
-$rcmail_config = array();
+$config = array();
 
 // Log DAV requests to <log_dir>/davdebug
-$rcmail_config['base_uri'] = null;
+$config['base_uri'] = null;
 
 // User agent string written to kolab storage MIME messages
-$rcmail_config['useragent'] = 'Kolab DAV Server libkolab/' . RCUBE_VERSION;
+$config['useragent'] = 'Kolab DAV Server libkolab/' . RCUBE_VERSION;
 
 // Roundcube plugins. Not all are supported here.
-$rcmail_config['kolabdav_plugins'] = array('kolab_auth');
+$config['kolabdav_plugins'] = array('kolab_auth');
 
 // Type of Auth cache. Supported values: 'db', 'apc' and 'memcache'.
 // Note: This is only for username canonification map.
-$rcmail_config['kolabdav_auth_cache'] = 'apc';
+$config['kolabdav_auth_cache'] = 'apc';
 
 // lifetime of the Auth cache, possible units: s, m, h, d, w
-$rcmail_config['kolabdav_auth_cache_ttl'] = '1h';
+$config['kolabdav_auth_cache_ttl'] = '1h';
+
+// enable debug console showing the internal function calls triggered
+// by http requests. This will write log to /var/log/iRony/console
+$config['kolabdav_console'] = false;
+
+// enable per-user debugging if /var/log/iRony/<username>/ folder exists
+$config['kolabdav_user_debug'] = false;
