@@ -44,6 +44,20 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private $aliases;
     private $useragent;
 
+    // mapping of labelled X-AB properties to known vcard fields
+    private $xab_labelled_map = array(
+        'X-ABDATE' => array(
+            'anniversary' => 'X-ANNIVERSARY',
+        ),
+        'X-ABRELATEDNAMES' => array(
+            'child'     => 'X-CHILDREN',
+            'spouse'    => 'X-SPOUSE',
+            'manager'   => 'X-MANAGER',
+            'assistant' => 'X-ASSISTANT',
+        ),
+    );
+    // known labels need to be quoted specially with _$!< >!$_
+    private $xab_known_labels = array('anniversary','child','parent','mother','father','brother','sister','friend','spouse','manager','assistant','partner','other');
 
     /**
      * Read available contact folders from server
@@ -649,7 +663,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['jobtitle']))
             $vc->add('TITLE', $contact['jobtitle']);
         if (!empty($contact['profession']))
-            $vc->add('X-PROFESSION', $contact['profession']);
+            $vc->add('ROLE', $contact['profession']);
 
         if (!empty($contact['organization']) || !empty($contact['department'])) {
             $org = VObject\Property::create('ORG');
@@ -682,7 +696,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         $improtocolmap = array_flip($this->improtocols);
         foreach ((array)$contact['im'] as $im) {
-            list($prot, $val) = explode(':', $im);
+            list($prot, $val) = explode(':', $im, 2);
             if ($val) $vc->add('x-' . ($improtocolmap[$prot] ?: $prot), $val);
             else      $vc->add('IMPP', $im);
         }
@@ -697,7 +711,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('NOTE', $contact['notes']);
 
         if (!empty($contact['gender']))
-            $vc->add('SEX', $contact['gender']);
+            $vc->add($this->is_apple() ? 'SEX' : 'X-GENDER', $contact['gender']);
 
         // convert date cols to DateTime objects
         foreach (array('birthday','anniversary') as $key) {
@@ -718,7 +732,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
         if (!empty($contact['anniversary']) && $contact['anniversary'] instanceof \DateTime) {
             $contact['anniversary']->_dateonly = true;
-            $vc->add(VObjectUtils::datetime_prop('ANNIVERSARY', $contact['anniversary'], false));
+            $vc->add(VObjectUtils::datetime_prop('X-ANNIVERSARY', $contact['anniversary'], false));
         }
 
         if (!empty($contact['categories'])) {
@@ -740,11 +754,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add($prop[0], $prop[1]);
         }
 
-        // send anniversary field as itemN.X-ABDATE
-        if ($this->is_apple() && !empty($contact['anniversary'])) {
-            $vc->add(VObjectUtils::datetime_prop('iRony.X-ABDATE', $contact['anniversary'], false));
-            $vc->add('iRony.X-ABLabel', '_$!<Anniversary>!$_');
-            unset($vc->ANNIVERSARY);
+        // send some known fields as itemN.X-AB* for Apple clients
+        if ($this->is_apple()) {
+            $this->_to_apple($contact, $vc);
         }
 
         if (!empty($contact['changed']))
@@ -776,17 +788,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             }
         }
 
-        // map Apple proprietary anniversary field to regular field
-        foreach ($vc->select('X-ABDATE') as $prop) {
-            $labelkey = $prop->group ? $prop->group . '.X-ABLABEL' : 'X-ABLABEL';
-            $labels = $vc->select($labelkey);
-            if (!empty($labels) && ($label = reset($labels)) && strtolower(trim($label->value, '_$!<>')) == 'anniversary') {
-                $prop->group = null;
-                $prop->name = 'ANNIVERSARY';
-                unset($vc->{$labelkey});
-                break;
-            }
-        }
+        // normalize apple-style properties
+        $this->_from_apple($vc);
 
         $phonetypemap = array_flip($this->phonetypes);
 
@@ -853,12 +856,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'SEX':
+                case 'GENDER':
                 case 'X-GENDER':
                     $contact['gender'] = $prop->value;
                     break;
 
+                case 'ROLE':
                 case 'X-PROFESSION':
-                    $contact[strtolower(substr($prop->name, 2))] = $prop->value;
+                    $contact['profession'] = $prop->value;
                     break;
 
                 case 'X-MANAGER':
@@ -879,9 +884,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'IMPP':
+                    $prot = null;
+                    if (preg_match('/^[a-z]+:/i', $prop->value))
+                        list($prot, $val) = explode(':', $prop->value, 2);
+                    else
+                        $val = $prop->value;
                     $type = strtolower((string)$prop->offsetGet('X-SERVICE-TYPE'));
-                    $protocol = $type && !preg_match('/^[a-z]+:/i', $prop->value) ? ($this->improtocols[$type] ?: $type) . ':' : '';
-                    $contact['im'][] = $protocol . urldecode($prop->value);
+                    $protocol = $type && (!$prot || $prot == 'aim') ? ($this->improtocols[$type] ?: $type) : $prot;
+                    $contact['im'][] = ($this->improtocols[$protocol] ?: $protocol) . ':' . urldecode($val);
                     break;
 
                 case 'PHOTO':
@@ -927,6 +937,74 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $contact['im'] = array_unique($contact['im']);
 
         return $contact;
+    }
+
+    /**
+     * Convert Apple-style item1.X-AB* properties to flat X-AB*-Label values
+     */
+    private function _from_apple($vc)
+    {
+        foreach ($this->xab_labelled_map as $propname => $known_map) {
+            foreach ($vc->select($propname) as $prop) {
+                $labelkey = $prop->group ? $prop->group . '.X-ABLABEL' : 'X-ABLABEL';
+                $labels = $vc->select($labelkey);
+                $field = !empty($labels) && ($label = reset($labels)) ? strtolower(trim($label->value, '_$!<>')) : null;
+                if ($field) {
+                    $prop->group = null;
+                    $prop->name = ($known_map[$field] ?: $propname . '-' . strtoupper($field));
+                    unset($vc->{$labelkey});
+                }
+            }
+
+            // must be an apple client :-)
+            $this->useragent = 'macosx';
+        }
+    }
+
+    /**
+     * Translate custom fields back to Apple-style item1.X-AB* properties
+     */
+    private function _to_apple($contact, $vc)
+    {
+        $this->item_count = 1;
+
+        foreach ($this->xab_labelled_map as $propname => $known_map) {
+            // convert known vcard properties into labelled ones
+            foreach (array_flip($known_map) as $name => $label) {
+                if ($vc->{$name}) {
+                    $this->_replace_with_labelled_prop($vc, $name, $propname, $label);
+                }
+            }
+
+            // translate custom properties with a matching prefix to labelled items
+            foreach ((array)$contact['x-custom'] as $prop) {
+                $name = $prop[0];
+                if (strpos($name, $propname) === 0) {
+                    $label = strtolower(substr($name, strlen($propname)+1));
+                    $this->_replace_with_labelled_prop($vc, $name, $propname, $label);
+                }
+            }
+        }
+    }
+
+    /**
+     * Helper method to replace a named property with a labelled one
+     */
+    private function _replace_with_labelled_prop($vc, $name, $propname, $label)
+    {
+        $group = 'item' . ($this->item_count++);
+        $prop = clone $vc->{$name};
+        $prop->name = $propname;
+        $prop->group = $group;
+        $vc->add($prop);
+
+        $ablabel = new VObject\Property('X-ABLabel');
+        $ablabel->name = 'X-ABLabel';
+        $ablabel->group = $group;
+        $ablabel->value = in_array($label, $this->xab_known_labels) ? '_$!<'.ucfirst($label).'>!$_' : ucfirst($label);
+        $vc->add($ablabel);
+
+        unset($vc->{$name});
     }
 
     /**
