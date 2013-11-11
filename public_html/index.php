@@ -74,13 +74,9 @@ if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_use
 // convenience function, you know it well :-)
 function console()
 {
-    global $rcube, $logger;
+    global $logger;
 
-    // write to global console log
-    if ($rcube->config->get('kolabdav_console', false)) {
-        call_user_func_array(array('rcube', 'console'), func_get_args());
-    }
-    else if ($logger) {
+    if ($logger) {
         call_user_func_array(array($logger, 'console'), func_get_args());
     }
 }
