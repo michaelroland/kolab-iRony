@@ -33,11 +33,18 @@ use Sabre\DAV\Locks\Backend\AbstractBackend;
 class File extends AbstractBackend
 {
     /**
-     * The storage file prefix
+     * The storage directory prefix
      *
      * @var string
      */
     private $basePath;
+
+    /**
+     * The directory to storage the file in
+     *
+     * @var string
+     */
+    private $dataDir;
 
     /**
      * Constructor
@@ -174,7 +181,14 @@ class File extends AbstractBackend
      */
     protected function getLocksFile()
     {
-        return $this->basePath . '_' . str_replace('@', '_', HTTPBasic::$current_user);
+        if (!$this->dataDir) {
+            $this->dataDir = $this->basePath . '/' . str_replace('@', '_', HTTPBasic::$current_user);
+
+            if (!is_dir($this->dataDir))
+                mkdir($this->dataDir);
+        }
+
+        return $this->dataDir . '/locks';
     }
 
     /**
