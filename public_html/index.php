@@ -66,30 +66,22 @@ $required = array('libkolab', 'libcalendaring');
 $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins($plugins, $required);
 
+// enable logger
+if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
+    $logger = new \Kolab\Utils\DAVLogger((\Kolab\Utils\DAVLogger::CONSOLE | $rcube->config->get('kolabdav_http_log', 0)));
+}
 
 // convenience function, you know it well :-)
 function console()
 {
-    global $rcube;
+    global $rcube, $logger;
 
     // write to global console log
     if ($rcube->config->get('kolabdav_console', false)) {
         call_user_func_array(array('rcube', 'console'), func_get_args());
     }
-
-    // dump console data per user
-    if ($rcube->config->get('kolabdav_user_debug', false)) {
-        $uname = \Kolab\DAV\Auth\HTTPBasic::$current_user;
-        $log_dir = $rcube->config->get('log_dir', RCUBE_INSTALL_PATH . 'logs');
-
-        if ($uname && $log_dir && is_writable($log_dir . '/' . $uname)) {
-            $msg = array();
-            foreach (func_get_args() as $arg) {
-                $msg[] = !is_string($arg) ? var_export($arg, true) : $arg;
-            }
-
-            rcube::write_log($uname . '/console', join(";\n", $msg));
-        }
+    else if ($logger) {
+        call_user_func_array(array($logger, 'console'), func_get_args());
     }
 }
 
@@ -145,9 +137,9 @@ else if ($services['WEBDAV']) {
 $server = new \Sabre\DAV\Server($nodes);
 $server->setBaseUri($base_uri);
 
-// enable logger
-if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
-    $server->addPlugin(new \Kolab\Utils\DAVLogger());
+// connect logger
+if (is_object($logger)) {
+    $server->addPlugin($logger);
 }
 
 // register some plugins
