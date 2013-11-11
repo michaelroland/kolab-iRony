@@ -155,7 +155,7 @@ if ($services['CARDDAV']) {
 if ($services['WEBDAV']) {
     // the lock manager is reponsible for making sure users don't overwrite each others changes.
     // TODO: replace this with a class that manages locks in the Kolab backend
-    $locks_backend = new \Sabre\DAV\Locks\Backend\File(KOLAB_DAV_ROOT . '/temp/locks');
+    $locks_backend = new Kolab\DAV\Locks\File(KOLAB_DAV_ROOT . '/temp/locks');
     $server->addPlugin(new \Sabre\DAV\Locks\Plugin($locks_backend));
 
     // intercept some of the garbage files operation systems tend to generate when mounting a WebDAV share
