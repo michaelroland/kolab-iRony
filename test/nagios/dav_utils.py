@@ -21,7 +21,7 @@
 import sys, argparse
 
 from base64 import b64encode
-from httplib import HTTPConnection, HTTPSConnection
+from httplib import HTTPConnection, HTTPSConnection, HTTPException
 
 # nagios return codes
 EXIT_OK = 0
