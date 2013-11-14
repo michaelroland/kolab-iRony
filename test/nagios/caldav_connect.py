@@ -2,7 +2,7 @@
 #
 # Copyright 2010-2013 Kolab Systems AG (http://www.kolabsys.com)
 #
-# Thomas Bruderli (Kolab Systems) <bruederli@kolabsys.com>
+# Thomas Bruederli <bruederli@kolabsys.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
