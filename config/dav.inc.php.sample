@@ -24,8 +24,9 @@
 
 $config = array();
 
-// Log DAV requests to <log_dir>/davdebug
-$config['base_uri'] = null;
+// The HTTP path to the iRony root directory.
+// Set to / if the service is registered as document root for a virtual host
+$config['base_uri'] = '/iRony/';
 
 // User agent string written to kolab storage MIME messages
 $config['useragent'] = 'Kolab DAV Server libkolab/' . RCUBE_VERSION;
