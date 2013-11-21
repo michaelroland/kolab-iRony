@@ -72,7 +72,7 @@ class DAVBackend
         }
 
         // generate a folder UID and set it to IMAP
-        $uid = rtrim(chunk_split(md5($folder->name . $folder->get_owner()), 12, '-'), '-');
+        $uid = rtrim(chunk_split(md5($folder->name . $folder->get_owner() . uniqid('-', true)), 12, '-'), '-');
         self::set_uid($folder, $uid);
 
         return $uid;
