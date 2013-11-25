@@ -36,7 +36,7 @@ $config['kolabdav_plugins'] = array('kolab_auth');
 
 // Type of Auth cache. Supported values: 'db', 'apc' and 'memcache'.
 // Note: This is only for username canonification map.
-$config['kolabdav_auth_cache'] = 'apc';
+$config['kolabdav_auth_cache'] = 'db';
 
 // lifetime of the Auth cache, possible units: s, m, h, d, w
 $config['kolabdav_auth_cache_ttl'] = '1h';
