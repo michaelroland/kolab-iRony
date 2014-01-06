@@ -279,7 +279,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 $cards[] = array(
                     'id' => $contact['uid'],
                     'uri' => $contact['uid'] . '.vcf',
-                    'lastmodified' => $contact['changed']->format('U'),
+                    'lastmodified' => is_a($contact['changed'], 'DateTime') ? $contact['changed']->format('U') : null,
                     'etag' => self::_get_etag($contact),
                     'size' => $contact['_size'],
                 );
@@ -318,7 +318,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return array(
                 'id' => $contact['uid'],
                 'uri' => $contact['uid'] . '.vcf',
-                'lastmodified' => $contact['changed']->format('U'),
+                'lastmodified' => is_a($contact['changed'], 'DateTime') ? $contact['changed']->format('U') : null,
                 'carddata' => $this->_to_vcard($contact),
                 'etag' => self::_get_etag($contact),
             );
