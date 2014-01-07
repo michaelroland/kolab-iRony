@@ -43,6 +43,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private $folders;
     private $aliases;
     private $useragent;
+    private $subscribed = null;
 
 
     /**
@@ -55,7 +56,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return $this->sources;
 
         // get all folders that have "contact" type
-        $folders = kolab_storage::get_folders('contact');
+        $folders = kolab_storage::get_folders('contact', $this->subscribed);
         $this->sources = $this->folders = $this->aliases = array();
 
         foreach (kolab_storage::sort_folders($folders) as $folder) {
@@ -162,6 +163,13 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         // resolve aliases (addressbook by folder name)
         if ($this->aliases[$addressBookUri]) {
             $id = $this->aliases[$addressBookUri];
+        }
+
+        // retry with subscribed = false (#2701)
+        if (empty($this->sources[$id]) && $this->subscribed === null && rcube::get_instance()->config->get('kolab_use_subscriptions')) {
+            $this->subscribed = false;
+            unset($this->sources);
+            return $this->getAddressBookByName($addressBookUri);
         }
 
         return $this->sources[$id];
