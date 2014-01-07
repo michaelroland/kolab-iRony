@@ -94,7 +94,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
             // LDAP server failure... send 503 error
             if ($auth['kolab_ldap_error']) {
-                throw new DAV\Exception\ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
+                throw new ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
             }
         }
 
