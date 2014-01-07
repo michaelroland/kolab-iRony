@@ -47,6 +47,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     private $folders;
     private $aliases;
     private $useragent;
+    private $subscribed = null;
 
     /**
      * Read available calendar folders from server
@@ -58,7 +59,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             return $this->calendars;
 
         // get all folders that have "event" type
-        $folders = array_merge(kolab_storage::get_folders('event'), kolab_storage::get_folders('task'));
+        $folders = array_merge(kolab_storage::get_folders('event', $this->subscribed), kolab_storage::get_folders('task', $this->subscribed));
         $this->calendars = $this->folders = $this->aliases = array();
 
         $order = 1;
@@ -163,6 +164,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         if ($this->calendars[$id] && empty($this->calendars[$id]['principaluri'])) {
             $this->calendars[$id]['principaluri'] = 'principals/' . HTTPBasic::$current_user;
+        }
+
+        // retry with subscribed = false (#2701)
+        if (empty($this->calendars[$id]) && $this->subscribed === null && rcube::get_instance()->config->get('kolab_use_subscriptions')) {
+            $this->subscribed = false;
+            unset($this->calendars);
+            return $this->getCalendarByName($calendarUri);
         }
 
         return $this->calendars[$id];

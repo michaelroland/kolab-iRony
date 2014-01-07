@@ -48,7 +48,7 @@ class DAVBackend
      */
     public static function get_storage_folder($uid, $type)
     {
-        foreach (kolab_storage::get_folders($type) as $folder) {
+        foreach (kolab_storage::get_folders($type, false) as $folder) {
             if ($folder->get_uid() == $uid)
                 return $folder;
         }
