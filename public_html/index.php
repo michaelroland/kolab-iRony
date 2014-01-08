@@ -8,7 +8,7 @@
  * @version 0.3-dev
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
- * Copyright (C) 2013, Kolab Systems AG <contact@kolabsys.com>
+ * Copyright (C) 2013-2014, Kolab Systems AG <contact@kolabsys.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as
@@ -175,6 +175,19 @@ if ($services['WEBDAV']) {
 if (getenv('DAVBROWSER')) {
     $server->addPlugin(new \Sabre\DAV\Browser\Plugin());
 }
+
+// log exceptions in iRony error log
+$server->subscribeEvent('exception', function($e){
+    if (!($e instanceof \Sabre\DAV\Exception) || $e->getHTTPCode() == 500) {
+        rcube::raise_error(array(
+            'code' => 500,
+            'type' => 'php',
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'message' => $e->getMessage() . " (error 500)\n" . $e->getTraceAsString(),
+        ), true, false);
+    }
+});
 
 // finally, process the request
 $server->exec();
