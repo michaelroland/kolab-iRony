@@ -660,7 +660,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 $vc->add($prop_prefix . 'MEMBER', $value);
             }
         }
-        else {
+        else if ($contact['surname'] . $contact['firstname'] . $contact['middlename'] . $contact['prefix'] . $contact['suffix'] != '') {
             $n = VObject\Property::create('N');
             $n->setParts(array($contact['surname'], $contact['firstname'], $contact['middlename'], $contact['prefix'], $contact['suffix']));
             $vc->add($n);
