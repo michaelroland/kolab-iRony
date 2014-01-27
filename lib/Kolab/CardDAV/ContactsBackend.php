@@ -725,7 +725,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         foreach (array('birthday','anniversary') as $key) {
             if (!empty($contact[$key]) && !$contact[$key] instanceof \DateTime) {
                 try {
-                    $contact[$key] = new \DateTime('@' . \rcube_utils::strtotime($contact[$key]));
+                    $contact[$key] = new \DateTime(\rcube_utils::clean_datestr($contact[$key]));
                 }
                 catch (\Exception $e) {
                     $contact[$key] = null;
