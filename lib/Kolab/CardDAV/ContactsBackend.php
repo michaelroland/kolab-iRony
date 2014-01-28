@@ -816,6 +816,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'TITLE':
+                    $contact['jobtitle'] = $prop->value;
+                    break;
+
                 case 'NICKNAME':
                     $contact[strtolower($prop->name)] = $prop->value;
                     break;
