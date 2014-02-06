@@ -288,7 +288,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $events = array();
         $storage = $this->get_storage_folder($calendarId);
         if ($storage) {
-            foreach ((array)$storage->select($query) as $event) {
+            foreach ($storage->select($query) as $event) {
                 $events[] = array(
                     'id' => $event['uid'],
                     'uri' => $event['uid'] . '.ics',
@@ -577,7 +577,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
       $results = array();
       if ($storage = $this->get_storage_folder($calendarId)) {
-          foreach ((array)$storage->select($query) as $event) {
+          foreach ($storage->select($query) as $event) {
               // TODO: cache the already fetched events in memory (really?)
               $results[] = $event['uid'] . '.ics';
           }
