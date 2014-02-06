@@ -283,7 +283,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $query = array(array('type', '=', $groups_support ? array('contact','distribution-list') : 'contact'));
         $cards = array();
         if ($storage = $this->get_storage_folder($addressBookId)) {
-            foreach ((array)$storage->select($query) as $contact) {
+            foreach ($storage->select($query) as $contact) {
                 $cards[] = array(
                     'id' => $contact['uid'],
                     'uri' => $contact['uid'] . '.vcf',
