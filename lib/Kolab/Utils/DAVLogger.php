@@ -132,9 +132,9 @@ class DAVLogger extends DAV\ServerPlugin
             $time = microtime(true) - KOLAB_DAV_START;
 
             if (function_exists('memory_get_usage'))
-               $mem = round(memory_get_usage() / 1024) . 'K';
+               $mem = round(memory_get_usage() / 1024 / 1024, 1) . 'MB';
             if (function_exists('memory_get_peak_usage'))
-               $mem .= '/' . round(memory_get_peak_usage() / 1024) . 'K';
+               $mem .= '/' . round(memory_get_peak_usage() / 1024 / 1024, 1) . 'MB';
 
             $this->write_log('console', sprintf("/%s: %0.4f sec; %s", $this->method, $time, $mem));
         }
