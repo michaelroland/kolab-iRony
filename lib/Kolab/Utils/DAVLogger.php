@@ -87,7 +87,7 @@ class DAVLogger extends DAV\ServerPlugin
         if ($this->loglevel & self::HTTP_REQUEST) {
             $request = $this->server->httpRequest;
             $content_type = $request->getHeader('CONTENT_TYPE');
-            if (strpos($content_type, 'text/') === 0) {
+            if (strpos($content_type, 'text/') === 0 || strpos($content_type, 'application/xml') === 0) {
                 $http_body = $request->getBody(true);
 
                 // Hack for reading php:://input because that stream can only be read once.
