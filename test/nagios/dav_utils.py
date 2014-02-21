@@ -18,9 +18,10 @@
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #
 
-import sys, argparse
+import sys, os, argparse
 
 from base64 import b64encode
+from ConfigParser import RawConfigParser
 from httplib import HTTPConnection, HTTPSConnection, HTTPException
 
 # nagios return codes
@@ -32,11 +33,50 @@ PORPFIND_PRINCIPAL = "<?xml version='1.0' encoding='utf-8' ?><D:propfind xmlns:D
 
 def getopts():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--server', dest='server', required=True)
-    parser.add_argument('-u', '--user', dest='user', required=True)
-    parser.add_argument('-p', '--pass', dest='passwd', required=True)
-    parser.add_argument('-d', '--dir', dest='dir')
-    return parser.parse_args()
+    parser.add_argument('-s', '--server', dest='server')
+    parser.add_argument('-u', '--user', dest='user')
+    parser.add_argument('-p', '--pass', dest='passwd')
+    parser.add_argument('-d', '--path', dest='path')
+    parser.add_argument('--extra-opts', '--extra-opts', dest='extraopts')
+    opts = parser.parse_args()
+
+    # read arguments from --extra-opts config section
+    err = False
+    if opts.extraopts:
+        extra = opts.extraopts.split('@');
+        if len(extra) < 2:
+            # check default config file locations
+            for path in [ '/etc/nagios/plugins.ini', '/usr/local/nagios/etc/plugins.ini', '/usr/local/etc/nagios/plugins.ini', '/etc/opt/nagios/plugins.ini' ]:
+                if os.path.exists(path):
+                    extra.append(path)
+                    break
+
+        if len(extra) < 2 or not os.path.exists(extra[1]):
+            print >> sys.stderr, "--extra-opts error: no nagios plugins.ini file found\n"
+            err = True
+        else:
+            try:
+                config = RawConfigParser()
+                config.read(extra[1])
+                for opt in config.items(extra[0]):
+                    (k,v) = opt
+                    opts.__dict__[k] = v
+
+            except Exception as e:
+                print >> sys.stderr, "--extra-opts error:", e, "\n"
+                err = True
+
+    # check required arguments
+    for k in [ 'server', 'user', 'passwd' ]:
+        if opts.__dict__[k] is None:
+            err = True
+
+
+    if err:
+        parser.print_usage()
+        sys.exit(EXIT_CRITICAL)
+
+    return opts
 
 def get_connection(args):
     if args.server.find("https") == 0:
@@ -55,7 +95,7 @@ def basic_auth(args):
     return "Basic " + b64encode(args.user + ":" + args.passwd)
 
 def abs_path(path, args):
-    base = args.dir.rstrip('/') if args.dir else ''
+    base = args.path.rstrip('/') if args.path else ''
     return base + path
 
 def test_http_auth(args):
