@@ -51,14 +51,15 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
     protected function validateUserPass($username, $password)
     {
         $rcube = rcube::get_instance();
+        $host  = $this->_select_host($username);
 
         // use shared cache for kolab_auth plugin result (username canonification)
         $cache     = $rcube->get_cache_shared('kolabdav_auth');
-        $cache_key = sha1($username);
+        $cache_key = sha1($username . '::' . $host);
 
         if (!$cache || !($auth = $cache->get($cache_key))) {
             $auth = $rcube->plugins->exec_hook('authenticate', array(
-                'host'  => $this->_select_host($username),
+                'host'  => $host,
                 'user'  => $username,
                 'pass'  => $password,
             ));
