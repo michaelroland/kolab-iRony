@@ -24,6 +24,7 @@
 namespace Kolab\DAV\Auth;
 
 use \rcube;
+use \rcube_imap_generic;
 use \rcube_user;
 use \rcube_utils;
 use Sabre\DAV;
@@ -53,7 +54,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
         // use shared cache for kolab_auth plugin result (username canonification)
         $cache     = $rcube->get_cache_shared('kolabdav_auth');
-        $cache_key = md5($username . '::' . $password);
+        $cache_key = sha1($username);
 
         if (!$cache || !($auth = $cache->get($cache_key))) {
             $auth = $rcube->plugins->exec_hook('authenticate', array(
@@ -68,13 +69,18 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
                     'host'  => $auth['host'],
                 ));
             }
+
+            // LDAP server failure... send 503 error
+            if ($auth['kolab_ldap_error']) {
+                throw new ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
+            }
         }
         else {
             $auth['pass'] = $password;
         }
 
         // authenticate user against the IMAP server
-        $user_id = $this->_login($auth['user'], $auth['pass'], $auth['host']);
+        $user_id = $auth['abort'] ? 0 : $this->_login($auth['user'], $auth['pass'], $auth['host'], $error);
 
         if ($user_id) {
             self::$current_user = $auth['user'];
@@ -82,20 +88,10 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
             return true;
         }
-        else {
-            // check LDAP auth if using cached data
-            if (!isset($auth['abort'])) {
-                $auth = $rcube->plugins->exec_hook('authenticate', array(
-                    'host'  => $auth['host'],
-                    'user'  => $username,
-                    'pass'  => $password,
-                ));
-            }
 
-            // LDAP server failure... send 503 error
-            if ($auth['kolab_ldap_error']) {
-                throw new ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
-            }
+        // IMAP server failure... send 503 error
+        if ($error == rcube_imap_generic::ERROR_BAD) {
+            throw new ServiceUnavailable('The service is temporarily unavailable (Storage failure)');
         }
 
         return false;
@@ -153,7 +149,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
     /**
      * Authenticates a user in IMAP and returns Roundcube user ID.
      */
-    protected function _login($username, $password, $host)
+    protected function _login($username, $password, $host, &$error = null)
     {
         if (empty($username)) {
             return null;
@@ -206,6 +202,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
         // authenticate user in IMAP
         if (!$storage->connect($host, $username, $password, $port, $ssl)) {
+            $error = $storage->get_error_code();
             return null;
         }
 
