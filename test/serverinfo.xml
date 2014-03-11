@@ -108,7 +108,7 @@
 		<!-- relative path to caldav root-->
 		<substitution>
 			<key>$root:</key>
-			<value>/dav/</value>
+			<value>/iRony/</value>
 		</substitution>
 
 		<!-- Useful xpath shortcuts for verifiers -->
@@ -448,7 +448,7 @@
 			</substitution>
 			<substitution>
 				<key>$principaluri%d:</key>
-				<value>$principalcollection:$userguid%d:/</value>
+				<value>$principalcollection:dav.user%02d%%40example.org/</value>
 			</substitution>
 			<substitution>
 				<key>$principal%dnoslash:</key>
@@ -507,7 +507,7 @@
 			</substitution>
 			<substitution>
 				<key>$email%d:</key>
-				<value>$userid%d:@example.com</value>
+				<value>$userid%d:</value>
 			</substitution>
 			<!-- calendar user address of user-->
 			<substitution>
