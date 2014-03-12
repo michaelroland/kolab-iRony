@@ -39,6 +39,8 @@ use Kolab\Utils\VObjectUtils;
  */
 class ContactsBackend extends CardDAV\Backend\AbstractBackend
 {
+    public $ldap_directory;
+
     private $sources;
     private $folders;
     private $aliases;
@@ -302,6 +304,12 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         // search all folders for the given card
         if ($addressBookId == '__all__') {
             $contact = $this->get_card_by_uid($uid, $storage);
+        }
+        // read card data from LDAP directory
+        else if ($addressBookId == LDAPDirectory::DIRECTORY_NAME) {
+            if (is_object($this->ldap_directory)) {
+                $contact = $this->ldap_directory->getContactObject($uid);
+            }
         }
         else {
             $storage = $this->get_storage_folder($addressBookId);

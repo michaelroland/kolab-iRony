@@ -46,7 +46,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     private $carddavBackend;
     private $principalUri;
     private $addressBookInfo = array();
-    private $uid2id = array();
+    private $cache;
     private $query;
     private $filter;
 
@@ -68,6 +68,18 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 
         // used for vcard serialization
         $this->carddavBackend = $carddavBackend ?: new ContactsBackend();
+        $this->carddavBackend->ldap_directory = $this;
+
+        // initialize cache
+        $rcube = rcube::get_instance();
+        if ($rcube->config->get('kolabdav_ldap_cache')) {
+            $this->cache = $rcube->get_cache_shared('kolabdav_ldap');
+
+            // expunge cache every now and then
+            if (rand(0,10) === 0) {
+                $this->cache->expunge();
+            }
+        }
     }
 
     private function connect()
@@ -117,12 +129,44 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         $uid = basename($cardUri, '.vcf');
         $record = null;
 
-        // TODO: get from cache
+        // get from cache
+        $cache_key = $uid;
+        if ($this->cache && ($cached = $this->cache->get($cache_key))) {
+            return new LDAPCard($this->carddavBackend, $this->addressBookInfo, $cached);
+        }
+
+        if ($contact = $this->getContactObject($uid)) {
+            $obj = array(
+                'id' => $contact['uid'],
+                'uri' => $contact['uid'] . '.vcf',
+                'lastmodified' => $contact['_timestamp'],
+                'carddata' => $this->carddavBackend->to_vcard($contact),
+                'etag' => self::_get_etag($contact),
+            );
+
+            // cache this object
+            if ($this->cache) {
+                $this->cache->set($cache_key, $obj);
+            }
+
+            return new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
+        }
+
+        throw new DAV\Exception\NotFound('Card not found');
+    }
+
+    /**
+     * Read contact object from LDAP
+     */
+    function getContactObject($uid)
+    {
+        $contact = null;
 
         if ($ldap = $this->connect()) {
             // used cached uid mapping
-            if ($ID = $this->uid2id[$uid]) {
-                $contact = $ldap->get_record($ID, true);
+            $cached_index = $this->cache ? $this->cache->get('index') : array();
+            if ($cached_index[$uid]) {
+                $contact = $ldap->get_record($cached_index[$uid][0], true);
             }
             else {  // query for uid
                 $result = $ldap->search('uid', $uid, 1, true, true);
@@ -133,19 +177,10 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 
             if ($contact) {
                 $this->_normalize_contact($contact);
-                $obj = array(
-                    'id' => $contact['uid'],
-                    'uri' => $contact['uid'] . '.vcf',
-                    'lastmodified' => $contact['_timestamp'],
-                    'carddata' => $this->carddavBackend->to_vcard($contact),
-                    'etag' => self::_get_etag($contact),
-                );
-
-                return new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
             }
         }
 
-        throw new DAV\Exception\NotFound('Card not found');
+        return $contact;
     }
 
     /**
@@ -158,6 +193,21 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         console(__METHOD__, $this->query, $this->filter);
 
         $children = array();
+
+        // return cached index
+        if (!$this->query && !$this->config['searchonly'] && $this->cache && ($cached_index = $this->cache->get('index'))) {
+            foreach ($cached_index as $uid => $c) {
+                $obj = array(
+                    'id'   => $uid,
+                    'uri'  => $uid . '.vcf',
+                    'etag' => $c[1],
+                    'lastmodified' => $c[2],
+                );
+                $children[] = new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
+            }
+
+            return $children;
+        }
 
         // query LDAP if we have a search query or listing is allowed
         if (($this->query || !$this->config['searchonly']) && ($ldap = $this->connect())) {
@@ -175,8 +225,9 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
             }
 
             $results = $ldap->list_records(null);
+            $directory_index = array();
 
-            // convert restuls into vcard blocks
+            // convert results into vcard blocks
             foreach ($results as $contact) {
                 $this->_normalize_contact($contact);
 
@@ -188,10 +239,21 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                     'etag' => self::_get_etag($contact),
                 );
 
-                // TODO: cache result
-                $this->uid2id[$contact['uid']] = $contact['ID'];
+                // cache record
+                $cache_key = $contact['uid'];
+                if ($this->cache) {
+                    $this->cache->set($cache_key, $obj);
+                }
 
+                $directory_index[$contact['uid']] = array($contact['ID'], $obj['etag'], $contact['_timestamp']);
+
+                // add CardDAV node
                 $children[] = new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
+            }
+
+            // cache the full listing
+            if (empty($this->filter) && $this->cache) {
+                $this->cache->set('index', $directory_index);
             }
         }
 
@@ -346,13 +408,13 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     private function _normalize_contact(&$contact)
     {
         if (is_numeric($contact['changed'])) {
-            $contact['_timestamp'] = $contact['changed'];
+            $contact['_timestamp'] = intval($contact['changed']);
             $contact['changed'] = new \DateTime('@' . $contact['changed']);
         }
         else if (!empty($contact['changed'])) {
             try {
                 $contact['changed'] = new \DateTime($contact['changed']);
-                $contact['_timestamp'] = $contact['changed']->format('U');
+                $contact['_timestamp'] = intval($contact['changed']->format('U'));
             }
             catch (Exception $e) {
                 $contact['changed'] = null;
@@ -362,11 +424,35 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         // map col:subtype fields to a list that the vcard serialization function understands
         foreach (array('email' => 'address', 'phone' => 'number', 'website' => 'url') as $col => $prop) {
             foreach (rcube_ldap::get_col_values($col, $contact) as $type => $values) {
-                foreach ($values as $value) {
+                foreach ((array)$values as $value) {
                     $contact[$col][] = array($prop => $value, 'type' => $type);
                 }
             }
+            unset($contact[$col.':'.$type]);
         }
+
+        $addresses = array();
+        foreach (rcube_ldap::get_col_values('address', $contact) as $type => $values) {
+            foreach ((array)$values as $adr) {
+                // skip empty address
+                $adr = array_filter($adr);
+                if (empty($adr))
+                    continue;
+
+                $addresses[] = array(
+                    'type'     => $type,
+                    'street'   => $adr['street'],
+                    'locality' => $adr['locality'],
+                    'code'     => $adr['zipcode'],
+                    'region'   => $adr['region'],
+                    'country'  => $adr['country'],
+                );
+            }
+
+            unset($contact['address:'.$type]);
+        }
+
+        $contact['address'] = $addresses;
     }
 
     /**

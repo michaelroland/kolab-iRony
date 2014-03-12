@@ -158,7 +158,8 @@ class Plugin extends CardDAV\Plugin
         $node = $this->server->tree->getNodeForPath(($uri = $this->server->getRequestUri()));
         console(__METHOD__, $uri);
 
-        // fix some stupid mistakes in queries sent by the SOGo connector
+        // fix some bogus parameters in queries sent by the SOGo connector.
+        // issue submitted in http://www.sogo.nu/bugs/view.php?id=2655
         $xpath = new \DOMXPath($dom);
         $xpath->registerNameSpace('card', Plugin::NS_CARDDAV);
 
