@@ -32,7 +32,6 @@ use \rcube_ldap;
 use \rcube_ldap_generic;
 use Sabre\DAV;
 use Sabre\DAVACL;
-use Sabre\CardDAV\Card;
 use Sabre\CardDAV\Property;
 
 /**
@@ -123,17 +122,17 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         if ($ldap = $this->connect()) {
             // used cached uid mapping
             if ($ID = $this->uid2id[$uid]) {
-                $record = $ldap->get_record($ID, true);
+                $contact = $ldap->get_record($ID, true);
             }
             else {  // query for uid
                 $result = $ldap->search('uid', $uid, 1, true, true);
                 if ($result->count) {
-                    $record = $result[0];
+                    $contact = $result[0];
                 }
             }
 
-            if ($record) {
-                $this->_normalize_contact($record);
+            if ($contact) {
+                $this->_normalize_contact($contact);
                 $obj = array(
                     'id' => $contact['uid'],
                     'uri' => $contact['uid'] . '.vcf',
@@ -142,7 +141,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                     'etag' => self::_get_etag($contact),
                 );
 
-                return new Card($this->carddavBackend, $this->addressBookInfo, $obj);
+                return new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
             }
         }
 
@@ -192,7 +191,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                 // TODO: cache result
                 $this->uid2id[$contact['uid']] = $contact['ID'];
 
-                $children[] = new Card($this->carddavBackend, $this->addressBookInfo, $obj);
+                $children[] = new LDAPCard($this->carddavBackend, $this->addressBookInfo, $obj);
             }
         }
 
@@ -446,7 +445,11 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     private function map_property2ldap($propname)
     {
         $attribs = array();
-        $ldap = $this->connect();
+
+        // LDAP backend not available, abort
+        if (!($ldap = $this->connect())) {
+            return $attribs;
+        }
 
         $vcard_fieldmap = array(
             'FN'    => array('name'),

@@ -67,7 +67,7 @@ class Plugin extends CardDAV\Plugin
     public function beforeGetProperties($path, DAV\INode $node, array &$requestedProperties, array &$returnedProperties)
     {
         // publish global ldap address book for this principal
-        if ($node instanceof DAVACL\IPrincipal && empty($this->directories) && \rcube::get_instance()->config->get('global_ldap_directory')) {
+        if ($node instanceof DAVACL\IPrincipal && empty($this->directories) && \rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
             $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
         }
 
