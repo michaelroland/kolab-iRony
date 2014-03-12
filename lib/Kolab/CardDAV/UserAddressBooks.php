@@ -50,7 +50,7 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
             $objs[] = new AddressBook($this->carddavBackend, $addressbook);
         }
 
-        if (rcube::get_instance()->config->get('global_ldap_directory')) {
+        if (rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
             $objs[] = $this->getLDAPDirectory();
         }
 
@@ -84,7 +84,7 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
     {
         if (!$this->ldap_directory) {
             $rcube = rcube::get_instance();
-            $config = $rcube->config->get('global_ldap_directory');
+            $config = $rcube->config->get('kolabdav_ldap_directory');
             $config['debug'] = $rcube->config->get('ldap_debug');
             $this->ldap_directory = new LDAPDirectory($config, $this->principalUri, $this->carddavBackend);
         }
