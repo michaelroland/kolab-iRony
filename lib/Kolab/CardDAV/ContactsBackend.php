@@ -313,7 +313,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'id' => $contact['uid'],
                 'uri' => $contact['uid'] . '.vcf',
                 'lastmodified' => is_a($contact['changed'], 'DateTime') ? $contact['changed']->format('U') : null,
-                'carddata' => $this->_to_vcard($contact),
+                'carddata' => $this->to_vcard($contact),
                 'etag' => self::_get_etag($contact),
             );
         }
@@ -613,7 +613,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      * @param array Hash array with contact properties from libkolab
      * @return string VCARD string containing the contact data
      */
-    private function _to_vcard($contact)
+    public function to_vcard($contact)
     {
         $vc = VObject\Component::create('VCARD');
         $vc->version = '3.0';
