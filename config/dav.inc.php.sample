@@ -51,3 +51,54 @@ $config['kolabdav_user_debug'] = false;
 // enable logging of full HTTP payload
 // (bitmask of these values: 2 = HTTP Requests, 4 = HTTP Responses)
 $config['kolabdav_http_log'] = 0;
+
+// Enables the CardDAV Directory Gateway Extension by exposing an
+// LDAP-based address book in the pricipals address book collection.
+// Properties of this option are the same as for $config['ldap_public'] entries.
+/*
+$config['kolabdav_ldap_directory'] = array(
+    'name'           => 'Global Address Book',
+    'hosts'          => 'localhost',
+    'port'           => 389,
+    'use_tls'        => false,
+    // If true the base_dn, bind_dn and bind_pass default to the user's credentials.
+    'user_specific'  => false,
+    // When 'user_specific' is enabled following variables can be used in base_dn/bind_dn config:
+    // %fu - The full username provided, assumes the username is an email
+    //       address, uses the username_domain value if not an email address.
+    // %u  - The username prior to the '@'.
+    // %d  - The domain name after the '@'.
+    // %dc - The domain name hierarchal string e.g. "dc=test,dc=domain,dc=com"
+    'base_dn'        => 'ou=People,dc=example,dc=org',
+    'bind_dn'        => 'uid=kolab-service,ou=Special Users,dc=example,dc=org',
+    'bind_pass'      => 'Welcome2KolabSystems',
+    'ldap_version'   => 3,
+    'filter'         => '(objectClass=inetOrgPerson)',
+    'search_fields'  => array('displayname', 'mail'),
+    'sort'           => array('displayname', 'sn', 'givenname', 'cn'),
+    'scope'          => 'sub',
+    'searchonly'     => true,  // Set to false to enable listing
+    'fuzzy_search'   => true,
+    'sizelimit'      => '1000',
+    'timelimit'      => '0',
+    'fieldmap'       => array(
+        // Roundcube        => LDAP
+        'name'              => 'displayName',
+        'surname'           => 'sn',
+        'firstname'         => 'givenName',
+        'middlename'        => 'initials',
+        'prefix'            => 'title',
+        'email:work'        => 'mail',
+        'email:other'       => 'alias',
+        'phone:main'        => 'telephoneNumber',
+        'phone:work'        => 'alternateTelephoneNumber',
+        'phone:mobile'      => 'mobile',
+        'phone:work2'       => 'blackberry',
+        'jobtitle'          => 'title',
+        'photo'             => 'jpegphoto',
+        // required for internal handling and caching
+        'uid'               => 'nsuniqueid',
+        'changed'           => 'modifytimestamp',
+    ),
+);
+*/
