@@ -23,6 +23,7 @@
 
 namespace Kolab\CardDAV;
 
+use \rcube;
 use Sabre\DAV;
 use Sabre\DAVACL;
 
@@ -33,6 +34,9 @@ use Sabre\DAVACL;
  */
 class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IExtendedCollection, DAVACL\IACL
 {
+    // pseudo-singleton instance
+    private $ldap_directory;
+
     /**
      * Returns a list of addressbooks
      *
@@ -45,6 +49,11 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         foreach($addressbooks as $addressbook) {
             $objs[] = new AddressBook($this->carddavBackend, $addressbook);
         }
+
+        if (rcube::get_instance()->config->get('global_ldap_directory')) {
+            $objs[] = $this->getLDAPDirectory();
+        }
+
         return $objs;
     }
 
@@ -56,6 +65,10 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
      */
     public function getChild($name)
     {
+        if ($name == LDAPDirectory::DIRECTORY_NAME) {
+            return $this->getLDAPDirectory();
+        }
+
         if ($addressbook = $this->carddavBackend->getAddressBookByName($name)) {
             $addressbook['principaluri'] = $this->principalUri;
             return new AddressBook($this->carddavBackend, $addressbook);
@@ -64,4 +77,18 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         throw new DAV\Exception\NotFound('Addressbook with name \'' . $name . '\' could not be found');
     }
 
+    /**
+     * Getter for the singleton instance of the LDAP directory
+     */
+    private function getLDAPDirectory()
+    {
+        if (!$this->ldap_directory) {
+            $rcube = rcube::get_instance();
+            $config = $rcube->config->get('global_ldap_directory');
+            $config['debug'] = $rcube->config->get('ldap_debug');
+            $this->ldap_directory = new LDAPDirectory($config, $this->principalUri, $this->carddavBackend);
+        }
+
+        return $this->ldap_directory;
+    }
 }
