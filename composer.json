@@ -23,8 +23,10 @@
 	},
 	"require": {
 		"php": ">=5.3.3",
-		"sabre/dav" : "1.8.*",
-		"pear-pear/PEAR": ">=1.9",
+		"sabre/dav" : "1.8.9",
+		"pear-pear/PEAR": ">=1.9"
+	},
+	"require-dev": {
 		"pear-pear/Mail_Mime": ">=1.8.1",
 		"pear-pear/Mail_mimeDecode": ">=1.5.5",
 		"pear-pear/Net_IDNA2": ">=0.1.1",
