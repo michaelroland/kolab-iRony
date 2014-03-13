@@ -364,6 +364,8 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                 'protected' => true,
             ),
         );
+
+        return $acl;
     }
 
     /**
