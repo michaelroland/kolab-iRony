@@ -51,6 +51,7 @@ function exception_error_handler($errno, $errstr, $errfile, $errline ) {
 
 // use composer's autoloader for dependencies
 $loader = require_once(KOLAB_DAV_ROOT . '/vendor/autoload.php');
+$loader->set('Kolab', array(KOLAB_DAV_ROOT . '/lib'));  // register iRony namespace(s)
 $loader->setUseIncludePath(true);  // enable include_path to load PEAR classes from their default location
 
 // load the Roundcube framework with its autoloader
