@@ -171,6 +171,8 @@ class Plugin extends CalDAV\Plugin
      */
     protected function getFreeBusyForEmail($email, \DateTime $start, \DateTime $end, VObject\Component $request)
     {
+        console(__METHOD__, $email, $start, $end);
+
         $email = preg_replace('/^mailto:/', '', $email);
 
         // pass-through the pre-generatd free/busy feed from Kolab's free/busy service
@@ -197,15 +199,17 @@ class Plugin extends CalDAV\Plugin
 
                 // success!
                 if ($response->getStatus() == 200) {
+                    $vcalendar = VObject\Reader::read($response->getBody(), VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
                     return array(
-                        'calendar-data' => $response->getBody(),
+                        'calendar-data' => $vcalendar,
                         'request-status' => '2.0;Success',
                         'href' => 'mailto:' . $email,
                     );
                 }
             }
             catch (\Exception $e) {
-                // ignore failures
+                // log failures
+                rcube::raise_error($e, true, false);
             }
         }
         else {
