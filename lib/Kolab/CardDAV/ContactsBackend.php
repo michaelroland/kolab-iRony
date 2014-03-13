@@ -698,7 +698,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('X-CHILDREN', join(',', (array)$contact['children']));
 
         foreach ((array)$contact['email'] as $email) {
-            $vc->add('EMAIL', $email['address'], array('type' => rtrim('INTERNET,' . strtoupper($email['type']), ',')));
+            $vemail = VObject\Property::create('EMAIL', $email['address'], array('type' => 'INTERNET'));
+            if (!empty($email['type']))
+                $vemail->offsetSet(null, new VObject\Parameter('type', strtoupper($email['type'])));
+            $vc->add($vemail);
         }
 
         foreach ((array)$contact['phone'] as $phone) {
