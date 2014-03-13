@@ -662,9 +662,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 if ($member['uid'])
                     $value = 'urn:uuid:' . $member['uid'];
                 else if ($member['email'] && $member['name'])
-                    $value = urlencode(sprintf('mailto:"%s" <%s>', addcslashes($member['name'], '"'), $member['email']));
+                    $value = 'mailto:' . urlencode(sprintf('"%s" <%s>', addcslashes($member['name'], '"'), $member['email']));
                 else if ($member['email'])
-                    $value = urlencode('mailto:' . $member['email']);
+                    $value = 'mailto:' . $member['email'];
                 $vc->add($prop_prefix . 'MEMBER', $value);
             }
         }
@@ -936,9 +936,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                         $contact['member'][] = array('uid' => substr($prop->value, 9));
                     }
                     else if (strpos($prop->value, 'mailto:') === 0) {
-                        $member = reset(\rcube_mime::parse_address_list(urldecode(substr($prop->value, 7))));
-                        if ($member['address'])
-                            $contact['member'][] = array('email' => $member['address'], 'name' => $member['name']);
+                        $member = reset(\rcube_mime::decode_address_list(urldecode(substr($prop->value, 7))));
+                        if ($member['mailto'])
+                            $contact['member'][] = array('email' => $member['mailto'], 'name' => $member['name']);
                     }
                     break;
 
