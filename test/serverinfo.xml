@@ -96,11 +96,11 @@
 		<!-- <feature>webcal</feature> -->						<!-- Internet calendar subscription via GET on calendar collection -->
 
 		<!-- CardDAV specific extension -->
-		<!-- <feature>carddav</feature> --> 						<!-- Basic CardDAV feature enabler -->
+		<feature>carddav</feature> 						<!-- Basic CardDAV feature enabler -->
 		<!-- <feature>default-addressbook</feature> --> 			<!-- Default address book behavior -->
 		<!-- <feature>global-addressbook</feature> --> 	<!-- Global address book for each user -->
 		<!-- <feature>shared-addressbooks</feature> -->			<!-- Shared address books extension -->
-		<!-- <feature>directory-gateway</feature> -->	<!-- Directory gateway extension -->
+		<feature>directory-gateway</feature>	<!-- Directory gateway extension -->
 
 	</features>
 
@@ -323,16 +323,16 @@
 			<value>Contacts</value>
 		</substitution>
 
-		<!-- directory name -->
-		<substitution>
-			<key>$directory:</key>
-			<value>$root:directory/</value>
-		</substitution>
-
 		<!-- global-addressbook name -->
 		<substitution>
 			<key>$global_addressbook:</key>
 			<value>global-addressbook</value>
+		</substitution>
+
+		<!-- directory name -->
+		<substitution>
+			<key>$directory:</key>
+			<value>$addressbooks:ldap-directory/</value>
 		</substitution>
 
 		<!-- POST add-member URI suffix -->
@@ -530,12 +530,18 @@
 			<!-- relative path to user addressbook home-->
 			<substitution>
 				<key>$addressbookhome%d:</key>
-				<value>$addressbooks_uids:$userguid%d:</value>
+				<value>$addressbooks:$userguid%d:</value>
 			</substitution>
 			<!-- relative path to user addressbook-->
 			<substitution>
 				<key>$addressbookpath%d:</key>
-				<value>$addressbooks_uids:$userguid%d:/$addressbook:</value>
+				<value>$addressbooks:$userguid%d:/$addressbook:</value>
+			</substitution>
+
+			<!-- directory name -->
+			<substitution>
+				<key>$directory%d:</key>
+				<value>$addressbooks:$userguid%d:/ldap-directory/</value>
 			</substitution>
 		</repeat>
 

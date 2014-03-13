@@ -24,9 +24,13 @@ PYTHONPATH=`$CALDAVTESTER/run.py -p`
 export PYTHONPATH="$PYTHONPATH:$CALDAVTESTER/../pycalendar/src"
 
 $CALDAVTESTER/testcaldav.py --print-details-onfail -s serverinfo.xml \
+    CardDAV/current-user-principal.xml \
+    CardDAV/ab-client.xml \
+    CardDAV/propfind.xml \
+    CardDAV/put.xml \
+    CardDAV/directory-gateway.xml \
     CalDAV/current-user-principal.xml \
     CalDAV/caldavIOP.xml \
     CalDAV/ctag.xml \
     CalDAV/attachments.xml
-
 

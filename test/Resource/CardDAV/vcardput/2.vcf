@@ -1,0 +1,16 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Apple Inc.//AddressBook 6.1//EN
+N:Contact;Mulberry;;;
+FN:Mulberry Contact
+NICKNAME:mulberry
+ORG:Apple Inc.;
+EMAIL;TYPE=INTERNET;TYPE=WORK:mulberry@example.com
+TEL;TYPE=HOME:777-777-7777
+TEL;TYPE=WORK:8888888888
+TEL;TYPE=FAX:5555555555
+ADR;TYPE=WORK:;;1234 Infinite Circle;Exampletino\, CA 99999;USA;;
+NOTE:This is a contact created in Mulberry.
+URL;TYPE=HOMEPAGE:http://www.example.com/~magic
+UID:2
+END:VCARD

@@ -1,0 +1,11 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Kawado;Saeko;;;
+FN:Snow Leopard
+ORG:Snow Leopard;
+EMAIL;TYPE=INTERNET;TYPE=WORK:snowleopard@example.com
+TEL;TYPE=WORK:777-777-7777
+ADR;TYPE=WORK:;;1 Fidel Ave. Suite 100;Mountain Top;CA;99999;USA
+X-ABSHOWAS:COMPANY
+UID:3
+END:VCARD

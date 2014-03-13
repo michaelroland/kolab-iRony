@@ -1,0 +1,11 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Thompson;Default;;;
+FN:Default Thompson
+EMAIL;TYPE=INTERNET;TYPE=WORK:lthompson@example.com
+TEL;TYPE=WORK:1-555-555-5555
+TEL;TYPE=CELL:1-444-444-4444
+ADR;TYPE=WORK:;;1245\, Test;Sesame Street\; On 
+ The Hill;California;11111;USA
+UID:11
+END:VCARD

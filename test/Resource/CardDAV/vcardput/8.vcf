@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Śuterry;HiAscii;;;
+FN:HiAscii Śuterry
+EMAIL;TYPE=INTERNET;TYPE=WORK;TYPE=pref:hiascii@example.com
+TEL;TYPE=WORK;TYPE=pref:777-777-7777
+TEL;TYPE=CELL:8888888888
+ADR;TYPE=WORK;TYPE=pref:;;1 ïlena;Paris;Paris;77777;France
+UID:8
+END:VCARD

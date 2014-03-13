@@ -1,0 +1,18 @@
+BEGIN:VCARD
+VERSION:3.0
+N:InfoIn;All;;;
+FN:All InfoIn
+ORG:allinfo Company;
+EMAIL;TYPE=INTERNET;TYPE=WORK:allinfomationin@example.com
+TEL;TYPE=WORK:777-777-7777
+TEL;TYPE=CELL:8888888888
+ADR;TYPE=WORK:;;1 Gally Street Apt #2;Mountain Top;CA;99999;USA
+X-YAHOO:saeko.where@example.com
+X-YAHOO-ID:saeko.where@example.com
+item1.X-ABLabel:_$!<Assistant>!$_
+item2.X-ABLabel:_$!<Friend>!$_
+item1.X-ABRELATEDNAMES:Shane
+item2.X-ABRELATEDNAMES:Mayumi Yan
+NOTE: Address book server test contact that hsa note field filled in.
+UID:5
+END:VCARD

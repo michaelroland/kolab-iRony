@@ -1,0 +1,10 @@
+BEGIN:VCARD
+VERSION:3.0
+N:Thompson;Non-default;;;
+FN:Non-default Thompson
+EMAIL;type=INTERNET;type=WORK;type=pref:nlthompson@example.com
+TEL;type=WORK;type=pref:1-555-555-5555
+TEL;type=CELL:1-444-444-4444
+ADR;type=WORK;type=pref:;;12456 Test;Sesame Street;California;11111;USA
+UID:16
+END:VCARD
