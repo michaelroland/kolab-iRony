@@ -108,5 +108,5 @@ $config['kolabdav_ldap_directory'] = array(
 
 // Enable caching for LDAP directory data.
 // This is recommended with 'searchonly' => false to speed-up sychronization of multiple clients
-// $rcmail_config['kolabdav_ldap_cache'] = 'memcache';
-// $rcmail_config['kolabdav_ldap_cache_ttl'] = 600;   // in seconds
+// $config['kolabdav_ldap_cache'] = 'memcache';
+// $config['kolabdav_ldap_cache_ttl'] = 600;   // in seconds
