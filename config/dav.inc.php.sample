@@ -63,12 +63,19 @@ $config['kolabdav_ldap_directory'] = array(
     'use_tls'        => false,
     // If true the base_dn, bind_dn and bind_pass default to the user's credentials.
     'user_specific'  => false,
+    // It's possible to bind with the current user's credentials for individual address books.
+    // The login name is used to search for the DN to bind with
+    'search_base_dn'            => 'ou=People,dc=example,dc=org',
+    'search_bind_dn'            => 'uid=kolab-service,ou=Special Users,dc=example,dc=org',
+    'search_bind_pw'            => 'Welcome2KolabSystems',
+    'search_filter'             => '(&(objectClass=inetOrgPerson)(mail=%fu))',
     // When 'user_specific' is enabled following variables can be used in base_dn/bind_dn config:
     // %fu - The full username provided, assumes the username is an email
     //       address, uses the username_domain value if not an email address.
     // %u  - The username prior to the '@'.
     // %d  - The domain name after the '@'.
     // %dc - The domain name hierarchal string e.g. "dc=test,dc=domain,dc=com"
+    // %dn - DN found by ldap search when search_filter/search_base_dn are used
     'base_dn'        => 'ou=People,dc=example,dc=org',
     'bind_dn'        => 'uid=kolab-service,ou=Special Users,dc=example,dc=org',
     'bind_pass'      => 'Welcome2KolabSystems',
@@ -78,7 +85,6 @@ $config['kolabdav_ldap_directory'] = array(
     'sort'           => array('displayname', 'sn', 'givenname', 'cn'),
     'scope'          => 'sub',
     'searchonly'     => true,  // Set to false to enable listing
-    'fuzzy_search'   => true,
     'sizelimit'      => '1000',
     'timelimit'      => '0',
     'fieldmap'       => array(
@@ -109,5 +115,5 @@ $config['kolabdav_ldap_directory'] = array(
 
 // Enable caching for LDAP directory data.
 // This is recommended with 'searchonly' => false to speed-up sychronization of multiple clients
-// $rcmail_config['kolabdav_ldap_cache'] = 'memcache';
-// $rcmail_config['kolabdav_ldap_cache_ttl'] = 600;   // in seconds
+// $config['kolabdav_ldap_cache'] = 'memcache';
+// $config['kolabdav_ldap_cache_ttl'] = 600;   // in seconds
