@@ -13,9 +13,6 @@
 			"url": "https://github.com/thomascube/sabre-vobject.git"
 		}
 	],
-	"autoload": {
-		"psr-0": { "": "lib/" }
-	},
 	"require": {
 		"php": ">=5.3.3",
 		"sabre/dav" : "1.8.9"
