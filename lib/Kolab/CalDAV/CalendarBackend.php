@@ -292,7 +292,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             foreach ($storage->select($query) as $event) {
                 $events[] = array(
                     'id' => $event['uid'],
-                    'uri' => $event['uid'] . '.ics',
+                    'uri' => VObjectUtils::uid2uri($event['uid'], '.ics'),
                     'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
                     'calendarid' => $calendarId,
                     'etag' => self::_get_etag($event),
@@ -321,12 +321,13 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarId, $objectUri);
 
-        $uid = basename($objectUri, '.ics');
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
 
         // attachment content is requested
         if (preg_match('!^(.+).ics:attachment:(\d+):.+$!', $objectUri, $m)) {
-            $uid = $m[1]; $part = $m[2];
+            $uid = VObjectUtils::uri2uid($m[1]);
+            $part = $m[2];
         }
 
         if ($storage && ($event = $storage->get_object($uid))) {
@@ -345,18 +346,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             // map attributes
             $event['attachments'] = $event['_attachments'];
 
-            // compose an absilute URI for referencing object attachments
+            // compose an absolute URI for referencing object attachments
             $base_uri = DAVBackend::abs_url(array(
                 CalDAV\Plugin::CALENDAR_ROOT,
                 preg_replace('!principals/!', '', $this->calendars[$calendarId]['principaluri']),
                 $calendarId,
-                $event['uid'] . '.ics',
+                VObjectUtils::uid2uri($event['uid'], '.ics'),
             ));
 
             // default response
             return array(
                 'id' => $event['uid'],
-                'uri' => $event['uid'] . '.ics',
+                'uri' => VObjectUtils::uid2uri($event['uid'], '.ics'),
                 'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
                 'calendarid' => $calendarId,
                 'calendardata' => $this->_to_ical($event, $base_uri, $storage),
@@ -388,7 +389,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarId, $objectUri, $calendarData);
 
-        $uid = basename($objectUri, '.ics');
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->parse_calendar_data($calendarData, $uid);
 
@@ -398,7 +399,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         // if URI doesn't match the content's UID, the object might already exist!
         if ($object['uid'] != $uid && $storage->get_object($object['uid'])) {
-            $objectUri = $object['uid'] . '.ics';
+            $objectUri = VObjectUtils::uid2uri($object['uid'], '.ics');
             Plugin::$redirect_basename = $objectUri;
             return $this->updateCalendarObject($calendarId, $objectUri, $calendarData);
         }
@@ -420,7 +421,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         // send Location: header if URI doesn't match object's UID (Bug #2109)
         if ($object['uid'] != $uid) {
-            Plugin::$redirect_basename = $object['uid'].'.ics';
+            Plugin::$redirect_basename = VObjectUtils::uid2uri($object['uid'], '.ics');
         }
 
         // return new Etag
@@ -447,7 +448,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarId, $objectUri, $calendarData);
 
-        $uid = basename($objectUri, '.ics');
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
         $storage = $this->get_storage_folder($calendarId);
         $object = $this->parse_calendar_data($calendarData, $uid);
 
@@ -512,7 +513,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarId, $objectUri);
 
-        $uid = basename($objectUri, '.ics');
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
         if ($storage = $this->get_storage_folder($calendarId)) {
             $storage->delete($uid);
         }

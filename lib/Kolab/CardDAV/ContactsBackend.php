@@ -288,7 +288,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             foreach ($storage->select($query) as $contact) {
                 $cards[] = array(
                     'id' => $contact['uid'],
-                    'uri' => $contact['uid'] . '.vcf',
+                    'uri' => VObjectUtils::uid2uri($contact['uid'], '.vcf'),
                     'lastmodified' => is_a($contact['changed'], 'DateTime') ? $contact['changed']->format('U') : null,
                     'etag' => self::_get_etag($contact),
                     'size' => $contact['_size'],
@@ -313,7 +313,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $cardUri);
 
-        $uid = basename($cardUri, '.vcf');
+        $uid = VObjectUtils::uri2uid($cardUri, '.vcf');
 
         // search all folders for the given card
         if ($addressBookId == '__all__') {
@@ -333,7 +333,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if ($contact) {
             return array(
                 'id' => $contact['uid'],
-                'uri' => $contact['uid'] . '.vcf',
+                'uri' => VObjectUtils::uid2uri($contact['uid'], '.vcf'),
                 'lastmodified' => is_a($contact['changed'], 'DateTime') ? $contact['changed']->format('U') : null,
                 'carddata' => $this->to_vcard($contact),
                 'etag' => self::_get_etag($contact),
@@ -370,7 +370,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $cardUri, $cardData);
 
-        $uid = basename($cardUri, '.vcf');
+        $uid = VObjectUtils::uri2uid($cardUri, '.vcf');
         $storage = $this->get_storage_folder($addressBookId);
         $object = $this->parse_vcard($cardData, $uid);
 
@@ -379,7 +379,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         // if URI doesn't match the content's UID, the object might already exist!
-        $cardUri = $object['uid'] . '.vcf';
+        $cardUri = VObjectUtils::uid2uri($object['uid'], '.vcf');
         if ($object['uid'] != $uid && $this->getCard($addressBookId, $cardUri)) {
             Plugin::$redirect_basename = $cardUri;
             return $this->updateCard($addressBookId, $cardUri, $cardData);
@@ -429,7 +429,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $cardUri, $cardData);
 
-        $uid = basename($cardUri, '.vcf');
+        $uid = VObjectUtils::uri2uid($cardUri, '.vcf');
         $object = $this->parse_vcard($cardData, $uid);
 
         // sanity check
@@ -499,7 +499,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $addressBookId, $cardUri);
 
-        $uid = basename($cardUri, '.vcf');
+        $uid = VObjectUtils::uri2uid($cardUri, '.vcf');
 
         if ($addressBookId == '__all__') {
             $this->get_card_by_uid($uid, $storage);

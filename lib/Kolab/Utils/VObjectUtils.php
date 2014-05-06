@@ -30,6 +30,30 @@ use Sabre\VObject\Property;
  */
 class VObjectUtils
 {
+    /**
+     * Convert an object URI into a valid UID value
+     */
+    public static function uri2uid($uri, $suffix = '')
+    {
+        $base = basename($uri, $suffix);
+        $uid = strtr($base, array('%2F' => '/'));
+
+        // assume full URL encoding
+        if (preg_match('/%[A-F0-9]{2}/', $uid)) {
+            return urldecode($base);
+        }
+
+        return $uid;
+    }
+
+    /**
+     * Encode an object UID into a valid URI
+     */
+    public static function uid2uri($uid, $suffix = '')
+    {
+        $encode = strpos($uid, '/') !== false;
+        return ($encode ? urlencode($uid) : $uid) . $suffix;
+    }
 
     /**
      * Create a Sabre\VObject\Property instance from a PHP DateTime object
