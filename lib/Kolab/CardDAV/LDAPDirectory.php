@@ -33,6 +33,7 @@ use \rcube_ldap_generic;
 use Sabre\DAV;
 use Sabre\DAVACL;
 use Sabre\CardDAV\Property;
+use Kolab\Utils\VObjectUtils;
 
 /**
  * CardDAV Directory Gateway implementation
@@ -126,7 +127,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     {
         console(__METHOD__, $cardUri);
 
-        $uid = basename($cardUri, '.vcf');
+        $uid = VObjectUtils::uri2uid($cardUri, '.vcf');
         $record = null;
 
         // get from cache
@@ -138,7 +139,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         if ($contact = $this->getContactObject($uid)) {
             $obj = array(
                 'id' => $contact['uid'],
-                'uri' => $contact['uid'] . '.vcf',
+                'uri' => VObjectUtils::uid2uri($contact['uid'], '.vcf'),
                 'lastmodified' => $contact['_timestamp'],
                 'carddata' => $this->carddavBackend->to_vcard($contact),
                 'etag' => self::_get_etag($contact),
@@ -199,7 +200,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
             foreach ($cached_index as $uid => $c) {
                 $obj = array(
                     'id'   => $uid,
-                    'uri'  => $uid . '.vcf',
+                    'uri'  => VObjectUtils::uid2uri($uid, '.vcf'),
                     'etag' => $c[1],
                     'lastmodified' => $c[2],
                 );
@@ -233,7 +234,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 
                 $obj = array(
                     'id'  => $contact['uid'],
-                    'uri' => $contact['uid'] . '.vcf',
+                    'uri' => VObjectUtils::uid2uri($contact['uid'], '.vcf'),
                     'lastmodified' => $contact['_timestamp'],
                     'carddata' => $this->carddavBackend->to_vcard($contact),
                     'etag' => self::_get_etag($contact),
