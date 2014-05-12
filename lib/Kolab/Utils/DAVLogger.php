@@ -101,6 +101,10 @@ class DAVLogger extends DAV\ServerPlugin
             // catch all headers
             $http_headers = array();
             foreach (apache_request_headers() as $hdr => $value) {
+                if (strtolower($hdr) == 'authorization') {
+                    $method = preg_match('/^((basic|digest)\s+)/i', $value, $m) ? $m[1] : '';
+                    $value = $method . str_repeat('*', strlen($value) - strlen($method));
+                }
                 $http_headers[$hdr] = "$hdr: $value";
             }
 
