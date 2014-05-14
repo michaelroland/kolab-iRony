@@ -151,10 +151,12 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
             $principal = $this->getPrincipalByPath($principal);
             if (!$principal) throw new Exception('Principal not found');
 
-            // TODO: for now the user principal has only its own groups
+            // TODO: implement full calendar delegation (with information from LDAP kolabDelegate)
             return array(
-                'principals/'.$name.'/calendar-proxy-read',
-                'principals/'.$name.'/calendar-proxy-write',
+                // Calendar delegation is not supported by our backend
+                //'principals/'.$name.'/calendar-proxy-read',
+                //'principals/'.$name.'/calendar-proxy-write',
+
                 // The addressbook groups are not supported in Sabre,
                 // see http://groups.google.com/group/sabredav-discuss/browse_thread/thread/ef2fa9759d55f8c#msg_5720afc11602e753
                 //'principals/'.$name.'/addressbook-proxy-read',
