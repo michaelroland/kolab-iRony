@@ -285,11 +285,16 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $calendarId);
 
-        $query = array();
         $events = array();
+        $query = $this->_event_filter_query(); console($query);
         $storage = $this->get_storage_folder($calendarId);
         if ($storage) {
             foreach ($storage->select($query) as $event) {
+                // post-filter events to suppress declined invitations
+                if (!$this->_event_filter_compare($event)) {
+                    continue;
+                }
+
                 $events[] = array(
                     'id' => $event['uid'],
                     'uri' => VObjectUtils::uid2uri($event['uid'], '.ics'),
@@ -303,7 +308,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         return $events;
     }
-
 
     /**
      * Returns information from a single calendar object, based on it's object
@@ -563,7 +567,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
       console(__METHOD__, $calendarId, $filters);
 
       // build kolab storage query from $filters
-      $query = array();
+      $query = $this->_event_filter_query();
       foreach ((array)$filters['comp-filters'] as $filter) {
           if ($filter['name'] != 'VEVENT')
               continue;
@@ -580,8 +584,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
       $results = array();
       if ($storage = $this->get_storage_folder($calendarId)) {
           foreach ($storage->select($query) as $event) {
-              // TODO: cache the already fetched events in memory (really?)
-              $results[] = $event['uid'] . '.ics';
+              // post-filter events to suppress declined invitations
+              if ($this->_event_filter_compare($event)) {
+                  $results[] = $event['uid'] . '.ics';
+              }
           }
       }
 
@@ -673,6 +679,62 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         }
 
         return $ical->export(array($event), null, false, $get_attachment);
+    }
+
+    /**
+     * Wrapper for libcalendaring::get_user_emails()
+     */
+    private function get_user_emails()
+    {
+        $emails = libcalendaring::get_instance()->get_user_emails();
+
+        if (empty($emails)) {
+            $emails = array(HTTPBasic::$current_user);
+        }
+
+        return $emails;
+    }
+
+    /**
+     * Provide basic query for kolab_storage_folder::select()
+     */
+    private function _event_filter_query()
+    {
+        // get email addresses of the current user
+        $user_emails = $this->get_user_emails();
+        $query = array();
+
+        // add query to exclude declined invitations
+        foreach ($user_emails as $email) {
+            $query[] = array('tags', '!=', 'x-partstat:' . $email . ':declined');
+            // $query[] = array('tags', '!=', 'x-partstat:' . $email . ':needs-action');
+        }
+
+        return $query;
+    }
+
+    /**
+     * Check the given event if it matches the filter
+     *
+     * @return boolean True if matches, false if not
+     */
+    private function _event_filter_compare($event)
+    {
+        static $user_emails;
+
+        if (!is_array($user_emails)) {
+            $user_emails = $this->get_user_emails();
+        }
+
+        if (is_array($event['attendees'])) {
+            foreach ($event['attendees'] as $attendee) {
+                if (in_array($attendee['email'], $user_emails) && $attendee['status'] == 'DECLINED') {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**
