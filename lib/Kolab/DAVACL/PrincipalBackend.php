@@ -113,6 +113,16 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         if ($prefix == 'principals' && $name == HTTPBasic::$current_user) {
             return $this->getCurrentUser();
         }
+        else if ($prefix == 'principals' && \rcube_utils::check_email($name, false)) {
+            // TODO: do a user lookup in LDAP
+            list($localname,$domain) = explode('@', $name);
+            return array(
+                'uri' => $path,
+                '{DAV:}displayname' => $localname,
+                '{http://sabredav.org/ns}email-address' => $name,
+                '{http://calendarserver.org/ns/}email-address-set' => $name,
+            );
+        }
 
         return null;
     }

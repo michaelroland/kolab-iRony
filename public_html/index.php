@@ -118,7 +118,7 @@ if ($services['WEBDAV']) {
 // This is an array which contains the 'top-level' directories in the WebDAV server.
 if ($services['CALDAV'] || $services['CARDDAV']) {
     $nodes = array(
-        new \Sabre\CalDAV\Principal\Collection($principal_backend),
+        new \Kolab\CalDAV\Principal\Collection($principal_backend),
     );
 
     if ($services['CALDAV']) {
