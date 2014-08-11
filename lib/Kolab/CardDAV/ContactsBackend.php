@@ -39,6 +39,11 @@ use Kolab\Utils\VObjectUtils;
  */
 class ContactsBackend extends CardDAV\Backend\AbstractBackend
 {
+    public static $supported_address_data = array(
+        array('contentType' => 'text/vcard', 'version' => '3.0'),
+        array('contentType' => 'text/vcard', 'version' => '4.0'),
+    );
+
     public $ldap_directory;
 
     private $sources;
@@ -84,7 +89,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'uri' => $id,
                 '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
-                '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
+                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Property\SupportedAddressData(self::$supported_address_data),
             );
             $this->aliases[$folder->name] = $id;
 
@@ -172,7 +177,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'uri' => '__all__',
                 '{DAV:}displayname' => 'All',
                 '{http://calendarserver.org/ns/}getctag' => join(':', $ctags),
-                '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new CardDAV\Property\SupportedAddressData(),
+                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Property\SupportedAddressData(self::$supported_address_data),
             );
         }
 

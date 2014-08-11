@@ -63,7 +63,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
             'id' => self::DIRECTORY_NAME,
             'uri' => self::DIRECTORY_NAME,
             '{DAV:}displayname' => $config['name'] ?: "LDAP Directory",
-            '{urn:ietf:params:xml:ns:caldav}supported-address-data' => new Property\SupportedAddressData(),
+            '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new Property\SupportedAddressData(),
             'principaluri' => $principalUri,
         );
 

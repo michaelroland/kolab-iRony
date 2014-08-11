@@ -26,13 +26,14 @@ namespace Kolab\CardDAV;
 use \rcube;
 use Sabre\DAV;
 use Sabre\DAVACL;
+use Sabre\CardDAV;
 
 /**
  * UserAddressBooks class
  *
  * The UserAddressBooks collection contains a list of addressbooks associated with a user
  */
-class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IExtendedCollection, DAVACL\IACL
+class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IExtendedCollection, DAV\IProperties, DAVACL\IACL
 {
     // pseudo-singleton instance
     private $ldap_directory;
@@ -90,5 +91,46 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         }
 
         return $this->ldap_directory;
+    }
+
+
+    /**
+     * Returns the list of properties
+     *
+     * @param array $requestedProperties
+     * @return array
+     */
+    public function getProperties($requestedProperties)
+    {
+        // console(__METHOD__, $requestedProperties);
+
+        $response = array();
+
+        foreach ($requestedProperties as $prop) {
+            switch($prop) {
+                case '{urn:ietf:params:xml:ns:carddav}supported-address-data':
+                    $response[$prop] = new CardDAV\Property\SupportedAddressData(ContactsBackend::$supported_address_data);
+                    break;
+            }
+        }
+
+        return $response;
+    }
+
+    /**
+     * Updates properties such as the display name and description
+     *
+     * @param array $mutations
+     * @return array
+     */
+    public function updateProperties($mutations)
+    {
+        $errors = array();
+
+        foreach ($mutations as $prop => $val) {
+            $errors[403][$prop] = null;
+        }
+
+        return $errors;
     }
 }
