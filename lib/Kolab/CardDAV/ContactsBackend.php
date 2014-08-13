@@ -67,6 +67,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     // known labels need to be quoted specially with _$!< >!$_
     private $xab_known_labels = array('anniversary','child','parent','mother','father','brother','sister','friend','spouse','manager','assistant','partner','other');
 
+    // mapping of related types to internal contact properties
+    private $related_map = array(
+        'child'     => 'children',
+        'spouse'    => 'spouse',
+        'manager'   => 'manager',
+        'assistant' => 'assistant',
+    );
+
     /**
      * Read available contact folders from server
      */
@@ -534,6 +542,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             'thunderbird' => 'Thunderbird/\d',
             'macosx'      => '(Mac OS X/.+)?AddressBook/\d(.+\sCardDAVPlugin)?',
             'ios'         => '(iOS/\d|[Dd]ata[Aa]ccessd/\d)',
+            'vcard4'      => '[Vv][Cc]ard([/ ])?4',
         );
 
         foreach ($ua_classes as $class => $regex) {
@@ -579,6 +588,14 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     private function is_apple()
     {
         return $this->useragent == 'macosx' || $this->useragent == 'ios';
+    }
+
+    /**
+     * Helper method to determine whether the connected client supports VCard4
+     */
+    private function is_vcard4()
+    {
+        return $this->useragent == 'vcard4';
     }
 
 
@@ -642,8 +659,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     public function to_vcard($contact)
     {
+        $v4 = $this->is_vcard4();
+        $v4_prefix = $v4 ? '' : 'X-';
+
         $vc = VObject\Component::create('VCARD');
-        $vc->version = '3.0';
+        $vc->version = $v4 ? '4.0' : '3.0';
         $vc->prodid = '-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
 
         $vc->add('UID', $contact['uid']);
@@ -692,15 +712,28 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add($org);
         }
 
-        // TODO: save as RELATED
-        if (!empty($contact['assistant']))
-            $vc->add('X-ASSISTANT', join(',', (array)$contact['assistant']));
-        if (!empty($contact['manager']))
-            $vc->add('X-MANAGER', join(',', (array)$contact['manager']));
-        if (!empty($contact['spouse']))
-            $vc->add('X-SPOUSE', join(',', (array)$contact['spouse']));
-        if (!empty($contact['children']))
-            $vc->add('X-CHILDREN', join(',', (array)$contact['children']));
+        // save as RELATED for VCard 4.0
+        if ($v4) {
+            foreach ($this->related_map as $type => $field) {
+                if (!empty($contact[$field])) {
+                    foreach ((array)$contact[$field] as $value) {
+                        $vc->add(VObject\Property::create('RELATED', $value, array('type' => $type)));
+                    }
+                }
+            }
+            if (is_array($contact['related'])) {
+                foreach ($contact['related'] as $value) {
+                    $vc->add('RELATED', $value);
+                }
+            }
+        }
+        else {
+            foreach (array_values($this->related_map) as $field) {
+                if (!empty($contact[$field])) {
+                    $vc->add(strtoupper('X-' . $field), join(',', (array)$contact[$field]));
+                }
+            }
+        }
 
         foreach ((array)$contact['email'] as $email) {
             $vemail = VObject\Property::create('EMAIL', $email['address'], array('type' => 'INTERNET'));
@@ -735,7 +768,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('NOTE', $contact['notes']);
 
         if (!empty($contact['gender']))
-            $vc->add($this->is_apple() ? 'SEX' : 'X-GENDER', $contact['gender']);
+            $vc->add($this->is_apple() ? 'SEX' : $v4_prefix . 'GENDER', $contact['gender']);
 
         // convert date cols to DateTime objects
         foreach (array('birthday','anniversary') as $key) {
@@ -756,7 +789,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
         if (!empty($contact['anniversary']) && $contact['anniversary'] instanceof \DateTime) {
             $contact['anniversary']->_dateonly = true;
-            $vc->add(VObjectUtils::datetime_prop('X-ANNIVERSARY', $contact['anniversary'], false));
+            $vc->add(VObjectUtils::datetime_prop($v4_prefix . 'ANNIVERSARY', $contact['anniversary'], false));
         }
 
         if (!empty($contact['categories'])) {
@@ -765,8 +798,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add($cat);
         }
 
-        if (!empty($contact['freebusyurl']))
+        if (!empty($contact['freebusyurl'])) {
             $vc->add('FBURL', $contact['freebusyurl']);
+        }
+
+        if (is_array($contact['lang'])) {
+            foreach ($contact['lang'] as $value) {
+                $vc->add('LANG', $value);
+            }
+        }
 
         if (!empty($contact['photo'])) {
             $vc->PHOTO = base64_encode($contact['photo']);
@@ -928,6 +968,26 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     }
                     break;
 
+                // VCard 4.0 properties
+
+                case 'FBURL':
+                    $contact['freebusyurl'] = $prop->value;
+                    break;
+
+                case 'LANG':
+                    $contact['lang'][] = $prop->value;
+                    break;
+
+                case 'RELATED':
+                    $type = strtolower($prop->offsetGet('type'));
+                    if ($field = $this->related_map[$type]) {
+                        $contact[$field][] = $prop->value;
+                    }
+                    else {
+                        $contact['related'][] = $prop->value;
+                    }
+                    break;
+
                 case 'KIND':
                 case 'X-ADDRESSBOOKSERVER-KIND':
                     if (strtolower($prop->value) == 'group') {
@@ -947,6 +1007,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     }
                     break;
 
+                // custom properties
                 case 'CUSTOM1':
                 case 'CUSTOM2':
                 case 'CUSTOM3':
