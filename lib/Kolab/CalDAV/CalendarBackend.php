@@ -27,6 +27,7 @@ use \PEAR;
 use \rcube;
 use \rcube_charset;
 use \kolab_storage;
+use \kolab_storage_config;
 use \libcalendaring;
 use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
@@ -286,7 +287,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         console(__METHOD__, $calendarId);
 
         $events = array();
-        $query = $this->_event_filter_query(); console($query);
+        $query = $this->_event_filter_query();
         $storage = $this->get_storage_folder($calendarId);
         if ($storage) {
             foreach ($storage->select($query) as $event) {
@@ -358,6 +359,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 VObjectUtils::uid2uri($event['uid'], '.ics'),
             ));
 
+            // get tags/categories from relations
+            $this->load_tags($event);
+
             // default response
             return array(
                 'id' => $event['uid'],
@@ -412,6 +416,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         $object['_attachments'] = $object['attachments'];
         unset($object['attachments']);
 
+        // remove categories from object data (only for tasks yet)
+        if ($object['_type'] == 'task') {
+            $tags = (array)$object['categories'];
+            unset($object['categories']);
+        }
+
         $success = $storage->save($object, $object['_type']);
         if (!$success) {
             rcube::raise_error(array(
@@ -421,6 +431,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                 true, false);
 
             throw new DAV\Exception('Error saving calendar object to backend');
+        }
+
+        // save tag relations on success (only available for tasks yet)
+        if ($object['_type'] == 'task') {
+            $this->save_tags($uid, $tags);
         }
 
         // send Location: header if URI doesn't match object's UID (Bug #2109)
@@ -489,6 +504,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             }
         }
 
+        // remove categories from object data (only for tasks yet)
+        if ($object['_type'] == 'task') {
+            $tags = (array)$object['categories'];
+            unset($object['categories']);
+        }
+
         // save object
         $saved = $storage->save($object, $object['_type'], $uid);
         if (!$saved) {
@@ -500,6 +521,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
             Plugin::$redirect_basename = null;
             throw new DAV\Exception('Error saving event object to backend');
+        }
+
+        // save tag relations on success (only available for tasks yet)
+        if ($object['_type'] == 'task') {
+            $this->save_tags($uid, $tags);
         }
 
         // return new Etag
@@ -519,7 +545,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         $uid = VObjectUtils::uri2uid($objectUri, '.ics');
         if ($storage = $this->get_storage_folder($calendarId)) {
-            $storage->delete($uid);
+            if ($storage->delete($uid)) {
+                $this->save_tags($uid, null);
+            }
         }
     }
 
@@ -615,6 +643,42 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
 
     /**********  Data conversion utilities  ***********/
+
+    /**
+     * Get object tags
+     */
+    private function load_tags(&$event)
+    {
+        // tag relations are only available for tasks yet
+        if ($event['_type'] != 'task') {
+            return;
+        }
+
+        $config = kolab_storage_config::get_instance();
+        $tags   = $config->get_tags($event['uid']);
+
+        if (!empty($tags)) {
+            $event['categories'] = array();
+        }
+
+        foreach ($tags as $tag) {
+            $event['categories'][] = $tag['name'];
+
+            // modify changed time if relation is newer
+            if ($tag['changed'] && !$event['changed'] || $tag['changed'] > $event['changed']) {
+                $event['changed'] = $tag['changed'];
+            }
+        }
+    }
+
+    /**
+     * Update object tags
+     */
+    private function save_tags($uid, $tags)
+    {
+        $config = kolab_storage_config::get_instance();
+        $config->save_tags($uid, $tags);
+    }
 
     /**
      * Parse the given iCal string into a hash array kolab_format_event can handle
@@ -745,7 +809,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     private static function _get_etag($event)
     {
-        return sprintf('"%s-%d"', substr(md5($event['uid']), 0, 16), $event['_msguid']);
+        return sprintf('"%s-%d-%d"',
+            substr(md5($event['uid']), 0, 16),
+            $event['_msguid'],
+            is_object($event['changed']) ? $event['changed']->format('U') : 0
+        );
     }
 
 }
