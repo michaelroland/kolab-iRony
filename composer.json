@@ -18,10 +18,10 @@
 		"sabre/dav" : "1.8.9"
 	},
 	"require-dev": {
-		"pear-pear/Mail_Mime": ">=1.8.1",
-		"pear-pear/Mail_mimeDecode": ">=1.5.5",
-		"pear-pear/Net_IDNA2": ">=0.1.1",
-		"pear-pear/HTTP_Request2": ">=2.1.1"
+		"pear-pear.php.net/Mail_Mime": ">=1.8.1",
+		"pear-pear.php.net/Mail_mimeDecode": ">=1.5.5",
+		"pear-pear.php.net/Net_IDNA2": ">=0.1.1",
+		"pear-pear.php.net/HTTP_Request2": ">=2.1.1"
 	},
 	"minimum-stability": "dev"
 }
