@@ -296,6 +296,9 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
                     continue;
                 }
 
+                // get tags/categories from relations
+                $this->load_tags($event);
+
                 $events[] = array(
                     'id' => $event['uid'],
                     'uri' => VObjectUtils::uid2uri($event['uid'], '.ics'),
@@ -436,6 +439,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // save tag relations on success (only available for tasks yet)
         if ($object['_type'] == 'task') {
             $this->save_tags($uid, $tags);
+            $object['categories'] = $tags;  // add again for etag computation
         }
 
         // send Location: header if URI doesn't match object's UID (Bug #2109)
@@ -526,6 +530,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
         // save tag relations on success (only available for tasks yet)
         if ($object['_type'] == 'task') {
             $this->save_tags($uid, $tags);
+            $object['categories'] = $tags;  // add again for etag computation
         }
 
         // return new Etag
@@ -809,10 +814,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
      */
     private static function _get_etag($event)
     {
-        return sprintf('"%s-%d-%d"',
+        return sprintf('"%s-%d-%s"',
             substr(md5($event['uid']), 0, 16),
             $event['_msguid'],
-            is_object($event['changed']) ? $event['changed']->format('U') : 0
+            !empty($event['categories']) ? substr(md5(join(',', (array)$event['categories'])), 0, 16) : '0'
         );
     }
 
