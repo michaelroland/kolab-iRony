@@ -156,6 +156,19 @@ class Plugin extends CalDAV\Plugin
     }
 
     /**
+     * Returns a list of features for the DAV: HTTP header.
+     * Including 'calendar-schedule' to enable scheduling support in Thunderbird Lightning.
+     *
+     * @return array
+     */
+    public function getFeatures()
+    {
+        $features = parent::getFeatures();
+        $features[] = 'calendar-schedule';
+        return $features;
+    }
+
+    /**
      * Returns free-busy information for a specific address. The returned
      * data is an array containing the following properties:
      *
