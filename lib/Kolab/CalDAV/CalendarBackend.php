@@ -671,7 +671,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             };
         }
 
-        return $ical->export(array($event), null, false, $get_attachment);
+        return $ical->export(array($event), null, false, $get_attachment, false);
     }
 
     /**
