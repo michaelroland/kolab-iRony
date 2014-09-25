@@ -11,6 +11,10 @@
 		{
 			"type": "vcs",
 			"url": "https://github.com/thomascube/sabre-vobject.git"
+		},
+		{
+			"type": "vcs",
+			"url": "git://git.kolab.org/git/pear/Net_LDAP3"
 		}
 	],
 	"require": {
@@ -18,10 +22,12 @@
 		"sabre/dav" : "1.8.9"
 	},
 	"require-dev": {
-		"pear-pear.php.net/Mail_Mime": ">=1.8.1",
-		"pear-pear.php.net/Mail_mimeDecode": ">=1.5.5",
-		"pear-pear.php.net/Net_IDNA2": ">=0.1.1",
-		"pear-pear.php.net/HTTP_Request2": ">=2.1.1"
+		"pear/mail_mime": ">=1.8.9",
+		"pear/mail_mime-decode": ">=1.5.5",
+		"pear/http_request2": ">=2.1.1",
+		"pear-pear.php.net/net_idna2": ">=0.1.1",
+		"pear-pear.php.net/net_ldap2": ">=2.0.12",
+		"kolab/Net_LDAP3": "dev-master"
 	},
 	"minimum-stability": "dev"
 }
