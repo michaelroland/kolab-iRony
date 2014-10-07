@@ -56,7 +56,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
         // get subfolders
         foreach ($folders as $folder) {
             // need root-folders or subfolders of specified folder
-            if (!$path_len || ($pos = strpos($folder, $this->path . '/')) === 0) {
+            if (!$path_len || strpos($folder, $this->path . '/') === 0) {
                 $virtual = false;
 
                 // remove path suffix, the list might contain folders (roots) that
@@ -71,12 +71,12 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
                     $virtual = true;
                 }
 
-                if (!array_key_exists($folder, $this->children)) {
-                    $path = Collection::ROOT_DIRECTORY . '/' . $folder;
-                    if ($path_len) {
-                        $folder = substr($folder, $path_len + 1);
-                    }
+                $path = Collection::ROOT_DIRECTORY . '/' . $folder;
+                if ($path_len) {
+                    $folder = substr($folder, $path_len + 1);
+                }
 
+                if (!array_key_exists($folder, $this->children)) {
                     $this->children[$folder] = new Collection($path, $this, array('virtual' => $virtual));
                 }
             }
