@@ -23,19 +23,12 @@
 
 namespace Kolab\DAV;
 
-use \rcube;
+use Kolab\DAV\Auth\HTTPBasic;
 
-class Backend
+class Backend extends \file_api_lib
 {
+    protected $configured = false;
     protected static $instance;
-    protected $api;
-    protected $conf;
-    protected $app_name = 'Kolab File API';
-    protected $config = array(
-        'date_format' => 'Y-m-d H:i',
-        'language'    => 'en_US',
-    );
-
 
     /**
      * This implements the 'singleton' design pattern
@@ -46,7 +39,6 @@ class Backend
     {
         if (!self::$instance) {
             self::$instance = new Backend();
-            self::$instance->init();
         }
 
         return self::$instance;
@@ -57,42 +49,29 @@ class Backend
      */
     protected function __construct()
     {
-        $rcube = rcube::get_instance();
-        $this->conf = $rcube->config;
     }
 
     /**
-     * Returns file API backend
-     */
-    public function get_backend()
-    {
-        return $this->api;
-    }
-
-    /**
-     * Initialise backend class
+     * Configure main (authentication) driver
      */
     protected function init()
     {
-        $driver = $this->conf->get('fileapi_backend', 'kolab');
-        $class  = $driver . '_file_storage';
+        // We currently support only one auth driver which is Kolab driver.
+        // Because of that we don't need to authenticate in Kolab again,
+        // we need only to configure it to use current username/password.
+        // This is required if we want to use external storage drivers.
 
-        $this->api = new $class;
-        $this->api->configure($this->config);
-    }
+        if (!$this->configured && !empty(HTTPBasic::$current_user)) {
+            // configure authentication driver
+            $config = array(
+                'username' => HTTPBasic::$current_user,
+                'password' => HTTPBasic::$current_pass,
+            );
 
-    /*
-     * Returns API capabilities
-     */
-    protected function capabilities()
-    {
-        foreach ($this->api->capabilities() as $name => $value) {
-            // skip disabled capabilities
-            if ($value !== false) {
-                $caps[$name] = $value;
-            }
+            $backend = $this->get_backend();
+            $backend->configure($config, '');
+
+            $this->configured = true;
         }
-
-        return $caps;
     }
 }

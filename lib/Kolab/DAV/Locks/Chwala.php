@@ -45,7 +45,7 @@ class Chwala extends AbstractBackend
     /**
      * The file API backend class
      *
-     * @var file_api_storage
+     * @var Kolab\DAV\Backend
      */
     protected $backend;
 
@@ -57,7 +57,7 @@ class Chwala extends AbstractBackend
      */
     public function __construct($path = null)
     {
-        $this->backend  = Backend::get_instance()->get_backend();
+        $this->backend  = Backend::get_instance();
         $this->basePath = $path;
     }
 
@@ -106,7 +106,7 @@ class Chwala extends AbstractBackend
         console(__METHOD__, $uri, $lockInfo);
 
         try {
-            $this->backend->lock($this->uri2path($uri), $this->from_lockinfo($lockInfo));
+            $this->backend->lock_create($this->uri2path($uri), $this->from_lockinfo($lockInfo));
         }
         catch (Exception $e) {
             return false;
@@ -127,7 +127,7 @@ class Chwala extends AbstractBackend
         console(__METHOD__, $uri, $lockInfo);
 
         try {
-            $this->backend->unlock($this->uri2path($uri), $this->from_lockinfo($lockInfo));
+            $this->backend->lock_delete($this->uri2path($uri), $this->from_lockinfo($lockInfo));
         }
         catch (Exception $e) {
             return false;
