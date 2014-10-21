@@ -48,6 +48,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
         try {
             // @TODO: This should be cached too (out of this class)
             $folders = $this->backend->folder_list();
+            $folders = $folders['list'];
         }
         catch (Exception $e) {
         }

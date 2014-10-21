@@ -42,7 +42,7 @@ class Node implements \Sabre\DAV\INode
     /**
      * The file API backend class
      *
-     * @var file_api_storage
+     * @var Kolab\DAV\Backend
      */
     protected $backend;
 
@@ -74,7 +74,7 @@ class Node implements \Sabre\DAV\INode
         $this->data    = $data;
         $this->path    = $path;
         $this->parent  = $parent;
-        $this->backend = Backend::get_instance()->get_backend();
+        $this->backend = Backend::get_instance();
 
         if ($this->path == Collection::ROOT_DIRECTORY) {
             $this->path = '';
@@ -172,6 +172,8 @@ class Node implements \Sabre\DAV\INode
 
         // $data can be a resource or a string
         if (is_resource($data)) {
+            rewind($data);
+
             // $data can be php://input or php://temp
             // php://input is not seekable, we need to "convert"
             // it to seekable resource, fstat/rewind later will work
@@ -182,17 +184,11 @@ class Node implements \Sabre\DAV\INode
                 rewind($new_data);
                 $data = $new_data;
             }
-
-            $content = stream_get_contents($data, 1024000, 0);
-            rewind($data);
-        }
-        else {
-            $content = &$data;
         }
 
         $filedata = array(
             'content' => $data,
-            'type'    => rcube_mime::file_content_type($content, $name, $type, true),
+            'type'    => $type,
         );
 
         return $filedata;
