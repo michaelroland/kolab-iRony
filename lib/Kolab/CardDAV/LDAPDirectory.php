@@ -164,6 +164,8 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         $contact = null;
 
         if ($ldap = $this->connect()) {
+            $ldap->reset();
+
             // used cached uid mapping
             $cached_index = $this->cache ? $this->cache->get('index') : array();
             if ($cached_index[$uid]) {
