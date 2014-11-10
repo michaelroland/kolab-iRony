@@ -222,7 +222,7 @@ class Plugin extends CalDAV\Plugin
             }
             catch (\Exception $e) {
                 // log failures
-                rcube::raise_error($e, true, false);
+                \rcube::raise_error($e, true, false);
             }
         }
         else {
