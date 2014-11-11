@@ -62,6 +62,7 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
         }
 
         // add support for scheduling AKA free/busy
+        // TODO: remove when CalendarBackend implements SchedulingSupport
         $objs[] = new Schedule\Outbox($this->principalInfo['uri']);
 
         // TODO: add notification support (check with clients first, if anybody supports it)

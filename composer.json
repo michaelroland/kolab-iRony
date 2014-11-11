@@ -20,7 +20,6 @@
 	"require-dev": {
 		"pear/mail_mime": ">=1.8.9",
 		"pear/mail_mime-decode": ">=1.5.5",
-		"pear/http_request2": ">=2.1.1",
 		"pear-pear.php.net/net_idna2": ">=0.1.1",
 		"pear-pear.php.net/net_ldap2": ">=2.0.12",
 		"kolab/Net_LDAP3": "dev-master"

@@ -73,9 +73,9 @@ class DAVLogger extends DAV\ServerPlugin
     /**
      * Handler for 'beforeMethod' events
      */
-    public function _beforeMethod($method, $uri)
+    public function _beforeMethod($request, $response)
     {
-        $this->method = $method;
+        $this->method = $request->getMethod();
 
         // turn on per-user http logging if the destination file exists
         if ($this->loglevel < 2 && $this->rcube->config->get('kolabdav_user_debug', false)
@@ -85,10 +85,9 @@ class DAVLogger extends DAV\ServerPlugin
 
         // log full HTTP request data
         if ($this->loglevel & self::HTTP_REQUEST) {
-            $request = $this->server->httpRequest;
-            $content_type = $request->getHeader('CONTENT_TYPE');
+            $content_type = $request->getHeader('Content-Type');
             if (strpos($content_type, 'text/') === 0 || strpos($content_type, 'application/xml') === 0) {
-                $http_body = $request->getBody(true);
+                $http_body = $request->getBodyAsString();
 
                 // Hack for reading php:://input because that stream can only be read once.
                 // This is why we re-populate the request body with the existing data.
@@ -114,7 +113,7 @@ class DAVLogger extends DAV\ServerPlugin
 
         // log to console
         if ($this->loglevel & self::CONSOLE) {
-           $this->write_log('console', $method . ' ' . $uri);
+           $this->write_log('console', $this->method . ' ' . $request->getUrl());
         }
     }
 
