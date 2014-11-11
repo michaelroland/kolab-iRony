@@ -31,7 +31,7 @@ use Kolab\DAV\Auth\HTTPBasic;
 /**
  * Kolab Principal Backend
  */
-class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterface
+class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterface
 {
     /**
      * Sets up the backend.
@@ -138,7 +138,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         // TODO: for now the group principal has only one member, the user itself
         list($prefix, $name) = URLUtil::splitPath($principal);
 
-        $principal = $this->getPrincipalByPath($prefix);
+        $principal = $this->getPrincipalByPath($principal);
         if (!$principal) throw new Exception('Principal not found');
 
         return array(
@@ -190,7 +190,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         throw new Exception('Setting members of the group is not supported yet');
     }
 
-    function updatePrincipal($path, $mutations)
+    function updatePrincipal($path, \Sabre\DAV\PropPatch $propPatch)
     {
         return 0;
     }
@@ -217,9 +217,10 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      *
      * @param string $prefixPath
      * @param array $searchProperties
+     * @param string $test
      * @return array
      */
-    function searchPrincipals($prefixPath, array $searchProperties)
+    function searchPrincipals($prefixPath, array $searchProperties, $test = 'allof')
     {
         console(__METHOD__, $prefixPath, $searchProperties);
 

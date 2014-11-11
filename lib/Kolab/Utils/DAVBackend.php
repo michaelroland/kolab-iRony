@@ -81,6 +81,33 @@ class DAVBackend
     }
 
     /**
+     * Set callback handler for property changes on the given folder
+     *
+     * @param object $folder kolab_storage_folder instance to operate on
+     * @param oject $propPatch PropPatch instance with the property updates
+     */
+    public static function handle_propatch($folder, \Sabre\DAV\PropPatch $propPatch)
+    {
+        $propPatch->handle(
+            array('{DAV:}displayname','{http://apple.com/ns/ical/}calendar-color'),
+            function($mutations) use ($folder) {
+                $result = DAVBackend::folder_update($folder, $mutations);
+                if (is_array($result)) {
+                    $ret = array();
+                    foreach ($result as $code => $props) {
+                        foreach (array_keys($props) as $prop) {
+                            $ret[$prop] = $code;
+                        }
+                    }
+                }
+                else {
+                    $ret = $result;
+                }
+                return $ret;
+            });
+    }
+
+    /**
      * Updates properties for a recourse (kolab folder)
      *
      * The mutations array uses the propertyName in clark-notation as key,
@@ -95,8 +122,8 @@ class DAVBackend
      * failures is returned.
      *
      * @param object $folder kolab_storage_folder instance to operate on
-     * @param array $mutations Hash array with propeties to change
-     * @return bool|array
+     * @param object $mutations Hash array with propeties to change
+     * @return void
      */
     public static function folder_update($folder, array $mutations)
     {

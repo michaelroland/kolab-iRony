@@ -29,6 +29,7 @@ use \kolab_storage;
 use Sabre\DAV;
 use Sabre\CardDAV;
 use Sabre\VObject;
+use Sabre\VObject\DateTimeParser;
 use Kolab\Utils\DAVBackend;
 use Kolab\Utils\VObjectUtils;
 
@@ -205,25 +206,31 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     }
 
     /**
-     * Updates an addressbook's properties
+     * Updates properties for an address book.
      *
-     * See Sabre\DAV\IProperties for a description of the mutations array, as
-     * well as the return value.
+     * The list of mutations is stored in a Sabre\DAV\PropPatch object.
+     * To do the actual updates, you must tell this object which properties
+     * you're going to process with the handle() method.
      *
-     * @param mixed $addressBookId
-     * @param array $mutations
-     * @see Sabre\DAV\IProperties::updateProperties
-     * @return bool|array
+     * Calling the handle method is like telling the PropPatch object "I
+     * promise I can handle updating this property".
+     *
+     * Read the PropPatch documenation for more info and examples.
+     *
+     * @param string $addressBookId
+     * @param \Sabre\DAV\PropPatch $propPatch
+     * @return void
      */
-    public function updateAddressBook($addressBookId, array $mutations)
+    public function updateAddressBook($addressBookId, \Sabre\DAV\PropPatch $propPatch)
     {
-        console(__METHOD__, $addressBookId, $mutations);
+        console(__METHOD__, $addressBookId, $propPatch);
 
         if ($addressBookId == '__all__')
             return false;
 
-        $folder = $this->get_storage_folder($addressBookId);
-        return $folder ? DAVBackend::folder_update($folder, $mutations) : false;
+        if ($folder = $this->get_storage_folder($addressBookId)) {
+            DAVBackend::handle_propatch($folder, $propPatch);
+        }
     }
 
     /**
@@ -662,9 +669,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $v4 = $this->is_vcard4();
         $v4_prefix = $v4 ? '' : 'X-';
 
-        $vc = VObject\Component::create('VCARD');
-        $vc->version = $v4 ? '4.0' : '3.0';
-        $vc->prodid = '-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
+        $vc = new VObject\Component\VCard();
+        $vc->VERSION = $v4 ? '4.0' : '3.0';
+        $vc->PRODID = '-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
 
         $vc->add('UID', $contact['uid']);
         $vc->add('FN', $contact['name']);
@@ -694,8 +701,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             }
         }
         else if ($contact['surname'] . $contact['firstname'] . $contact['middlename'] . $contact['prefix'] . $contact['suffix'] != '') {
-            $n = VObject\Property::create('N');
-            $n->setParts(array($contact['surname'], $contact['firstname'], $contact['middlename'], $contact['prefix'], $contact['suffix']));
+            $n = $vc->create('N');
+            $n->setParts(array(strval($contact['surname']), strval($contact['firstname']), strval($contact['middlename']), strval($contact['prefix']), strval($contact['suffix'])));
             $vc->add($n);
         }
 
@@ -707,7 +714,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $vc->add('ROLE', $contact['profession']);
 
         if (!empty($contact['organization']) || !empty($contact['department'])) {
-            $org = VObject\Property::create('ORG');
+            $org = $vc->create('ORG');
             $org->setParts(array($contact['organization'], $contact['department']));
             $vc->add($org);
         }
@@ -717,7 +724,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             foreach ($this->related_map as $type => $field) {
                 if (!empty($contact[$field])) {
                     foreach ((array)$contact[$field] as $value) {
-                        $vc->add(VObject\Property::create('RELATED', $value, array('type' => $type)));
+                        $vc->add($vc->create('RELATED', $value, array('type' => $type)));
                     }
                 }
             }
@@ -736,9 +743,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         foreach ((array)$contact['email'] as $email) {
-            $vemail = VObject\Property::create('EMAIL', $email['address'], array('type' => 'INTERNET'));
-            if (!empty($email['type']))
-                $vemail->offsetSet(null, new VObject\Parameter('type', strtoupper($email['type'])));
+            $vemail = $vc->create('EMAIL', $email['address'], array('type' => 'INTERNET'));
+            if (!empty($email['type'])) {
+                $vemail['type']->addValue(strtoupper($email['type']));
+            }
             $vc->add($vemail);
         }
 
@@ -759,7 +767,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         foreach ((array)$contact['address'] as $adr) {
-            $vadr = VObject\Property::create('ADR', null, array('type' => strtoupper($adr['type'])));
+            $vadr = $vc->create('ADR', null, array('type' => strtoupper($adr['type'])));
             $vadr->setParts(array('','', $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']));
             $vc->add($vadr);
         }
@@ -785,15 +793,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['birthday']) && $contact['birthday'] instanceof \DateTime) {
             // FIXME: Date values are ignored by Thunderbird
             $contact['birthday']->_dateonly = true;
-            $vc->add(VObjectUtils::datetime_prop('BDAY', $contact['birthday'], false));
+            $vc->add(VObjectUtils::datetime_prop($vc, 'BDAY', $contact['birthday'], false));
         }
         if (!empty($contact['anniversary']) && $contact['anniversary'] instanceof \DateTime) {
             $contact['anniversary']->_dateonly = true;
-            $vc->add(VObjectUtils::datetime_prop($v4_prefix . 'ANNIVERSARY', $contact['anniversary'], false));
+            $vc->add(VObjectUtils::datetime_prop($vc, $v4_prefix . 'ANNIVERSARY', $contact['anniversary'], false));
         }
 
         if (!empty($contact['categories'])) {
-            $cat = VObject\Property::create('CATEGORIES');
+            $cat = $vc->create('CATEGORIES');
             $cat->setParts((array)$contact['categories']);
             $vc->add($cat);
         }
@@ -809,8 +817,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         if (!empty($contact['photo'])) {
-            $vc->PHOTO = base64_encode($contact['photo']);
-            $vc->PHOTO->add('BASE64', null);
+            $vc->PHOTO = $contact['photo'];
+            $vc->PHOTO['ENCODING'] = 'b';
         }
 
         // add custom properties
@@ -823,8 +831,13 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $this->_to_apple($contact, $vc);
         }
 
-        if (!empty($contact['changed']))
-            $vc->add(VObjectUtils::datetime_prop('REV', $contact['changed'], true));
+        if (!empty($contact['changed']) && is_a($contact['changed'], 'DateTime'))
+            $vc->REV = $contact['changed']->format('Ymd\\THis\\Z');
+
+        // convert to VCard4.0
+        // if ($v4) {
+        //    $vc->convert(VObject\Document::VCARD40);
+        //}
 
         return $vc->serialize();
     }
@@ -845,10 +858,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         );
 
         if ($vc->REV) {
-            try { $contact['changed'] = $vc->REV->getDateTime(); }
+            try {
+                $contact['changed'] = DateTimeParser::parseDateTime(strval($vc->REV));
+            }
             catch (\Exception $e) {
-                try { $contact['changed'] = new \DateTime(strval($vc->REV)); }
-                catch (\Exception $e) { }
+                // ignore
             }
         }
 
@@ -862,21 +876,23 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             if (!($prop instanceof VObject\Property))
                 continue;
 
+            $value = strval($prop);
+
             switch ($prop->name) {
                 case 'N':
                     list($contact['surname'], $contact['firstname'], $contact['middlename'], $contact['prefix'], $contact['suffix']) = $prop->getParts();
                     break;
 
                 case 'NOTE':
-                    $contact['notes'] = $prop->value;
+                    $contact['notes'] = $value;
                     break;
 
                 case 'TITLE':
-                    $contact['jobtitle'] = $prop->value;
+                    $contact['jobtitle'] = $value;
                     break;
 
                 case 'NICKNAME':
-                    $contact[strtolower($prop->name)] = $prop->value;
+                    $contact[strtolower($prop->name)] = $value;
                     break;
 
                 case 'ORG':
@@ -890,54 +906,54 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
                 case 'EMAIL':
                     $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
-                    $contact['email'][] = array('address' => $prop->value, 'type' => strtolower($types[0] ?: 'other'));
+                    $contact['email'][] = array('address' => $value, 'type' => strtolower($types[0] ?: 'other'));
                     break;
 
                 case 'URL':
                     $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
-                    $contact['website'][] = array('url' => $prop->value, 'type' => strtolower($types[0]));
+                    $contact['website'][] = array('url' => $value, 'type' => strtolower($types[0]));
                     break;
 
                 case 'TEL':
                     $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
                     $type = strtolower($types[0]);
-                    $contact['phone'][] = array('number' => $prop->value, 'type' => $phonetypemap[$type] ?: $type);
+                    $contact['phone'][] = array('number' => $value, 'type' => $phonetypemap[$type] ?: $type);
                     break;
 
                 case 'ADR':
                     $type = $prop->offsetGet('type') ?: $prop->parameters[0];
-                    $adr = array('type' => strtolower($type->value ?: $type->name));
+                    $adr = array('type' => strtolower(strval($type) ?: $type->name));
                     list(,, $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']) = $prop->getParts();
                     $contact['address'][] = $adr;
                     break;
 
                 case 'BDAY':
-                    $contact['birthday'] = new \DateTime($prop->value);
+                    $contact['birthday'] = new \DateTime($value);
                     $contact['birthday']->_dateonly = true;
                     break;
 
                 case 'ANNIVERSARY':
                 case 'X-ANNIVERSARY':
-                    $contact['anniversary'] = new \DateTime($prop->value);
+                    $contact['anniversary'] = new \DateTime($value);
                     $contact['anniversary']->_dateonly = true;
                     break;
 
                 case 'SEX':
                 case 'GENDER':
                 case 'X-GENDER':
-                    $contact['gender'] = $prop->value;
+                    $contact['gender'] = $value;
                     break;
 
                 case 'ROLE':
                 case 'X-PROFESSION':
-                    $contact['profession'] = $prop->value;
+                    $contact['profession'] = $value;
                     break;
 
                 case 'X-MANAGER':
                 case 'X-ASSISTANT':
                 case 'X-CHILDREN':
                 case 'X-SPOUSE':
-                    $contact[strtolower(substr($prop->name, 2))] = explode(',', $prop->value);
+                    $contact[strtolower(substr($prop->name, 2))] = explode(',', $value);
                     break;
 
                 case 'X-JABBER':
@@ -947,15 +963,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 case 'X-YAHOO':
                 case 'X-SKYPE':
                     $protocol = strtolower(substr($prop->name, 2));
-                    $contact['im'][] = ($this->improtocols[$protocol] ?: $protocol) . ':' . preg_replace('/^[a-z]+:/i', '', $prop->value);
+                    $contact['im'][] = ($this->improtocols[$protocol] ?: $protocol) . ':' . preg_replace('/^[a-z]+:/i', '', $value);
                     break;
 
                 case 'IMPP':
                     $prot = null;
-                    if (preg_match('/^[a-z]+:/i', $prop->value))
-                        list($prot, $val) = explode(':', $prop->value, 2);
+                    if (preg_match('/^[a-z]+:/i', $value))
+                        list($prot, $val) = explode(':', $value, 2);
                     else
-                        $val = $prop->value;
+                        $val = $value;
                     $type = strtolower((string)$prop->offsetGet('X-SERVICE-TYPE'));
                     $protocol = $type && (!$prot || $prot == 'aim') ? ($this->improtocols[$type] ?: $type) : $prot;
                     $contact['im'][] = ($this->improtocols[$protocol] ?: $protocol) . ':' . urldecode($val);
@@ -963,45 +979,45 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
                 case 'PHOTO':
                     $param = $prop->offsetGet('encoding') ?: $prop->parameters[0];
-                    if ($param->value && (strtolower($param->value) == 'b' || strtolower($param->value) == 'base64') || strtolower($param->name) == 'base64') {
-                        $contact['photo'] = base64_decode($prop->value);
+                    if (($pvalue = $param->getValue()) && (strtolower($pvalue) == 'b' || strtolower($pvalue) == 'base64') || strtolower($param->name) == 'base64') {
+                        $contact['photo'] = $value;
                     }
                     break;
 
                 // VCard 4.0 properties
 
                 case 'FBURL':
-                    $contact['freebusyurl'] = $prop->value;
+                    $contact['freebusyurl'] = $value;
                     break;
 
                 case 'LANG':
-                    $contact['lang'][] = $prop->value;
+                    $contact['lang'][] = $value;
                     break;
 
                 case 'RELATED':
                     $type = strtolower($prop->offsetGet('type'));
                     if ($field = $this->related_map[$type]) {
-                        $contact[$field][] = $prop->value;
+                        $contact[$field][] = $value;
                     }
                     else {
-                        $contact['related'][] = $prop->value;
+                        $contact['related'][] = $value;
                     }
                     break;
 
                 case 'KIND':
                 case 'X-ADDRESSBOOKSERVER-KIND':
-                    if (strtolower($prop->value) == 'group') {
+                    if (strtolower($value) == 'group') {
                         $contact['_type'] = 'distribution-list';
                     }
                     break;
 
                 case 'MEMBER':
                 case 'X-ADDRESSBOOKSERVER-MEMBER':
-                    if (strpos($prop->value, 'urn:uuid:') === 0) {
-                        $contact['member'][] = array('uid' => substr($prop->value, 9));
+                    if (strpos($value, 'urn:uuid:') === 0) {
+                        $contact['member'][] = array('uid' => substr($value, 9));
                     }
-                    else if (strpos($prop->value, 'mailto:') === 0) {
-                        $member = reset(\rcube_mime::decode_address_list(urldecode(substr($prop->value, 7))));
+                    else if (strpos($value, 'mailto:') === 0) {
+                        $member = reset(\rcube_mime::decode_address_list(urldecode(substr($value, 7))));
                         if ($member['mailto'])
                             $contact['member'][] = array('email' => $member['mailto'], 'name' => $member['name']);
                     }
@@ -1015,7 +1031,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 default:
                     if (substr($prop->name, 0, 2) == 'X-' || substr($prop->name, 0, 6) == 'CUSTOM') {
                         $prefix = $prop->group ? $prop->group . '.' : '';
-                        $contact['x-custom'][] = array($prefix . $prop->name, strval($prop->value));
+                        $contact['x-custom'][] = array($prefix . $prop->name, strval($value));
                     }
                     break;
             }
@@ -1036,7 +1052,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             foreach ($vc->select($propname) as $prop) {
                 $labelkey = $prop->group ? $prop->group . '.X-ABLABEL' : 'X-ABLABEL';
                 $labels = $vc->select($labelkey);
-                $field = !empty($labels) && ($label = reset($labels)) ? strtolower(trim($label->value, '_$!<>')) : null;
+                $field = !empty($labels) && ($label = reset($labels)) ? strtolower(trim(strval($label), '_$!<>')) : null;
                 if ($field) {
                     $prop->group = null;
                     $prop->name = ($known_map[$field] ?: $propname . '-' . strtoupper($field));
@@ -1086,10 +1102,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $prop->group = $group;
         $vc->add($prop);
 
-        $ablabel = new VObject\Property('X-ABLabel');
-        $ablabel->name = 'X-ABLabel';
+        $ablabel = $vc->create('X-ABLabel');
         $ablabel->group = $group;
-        $ablabel->value = in_array($label, $this->xab_known_labels) ? '_$!<'.ucfirst($label).'>!$_' : ucfirst($label);
+        $ablabel->setValue(in_array($label, $this->xab_known_labels) ? '_$!<'.ucfirst($label).'>!$_' : ucfirst($label));
         $vc->add($ablabel);
 
         unset($vc->{$name});

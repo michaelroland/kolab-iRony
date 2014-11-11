@@ -118,19 +118,14 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
     }
 
     /**
-     * Updates properties such as the display name and description
+     * Updates properties on this node.
      *
-     * @param array $mutations
-     * @return array
+     * @param PropPatch $propPatch
+     * @return void
      */
-    public function updateProperties($mutations)
+    public function propPatch(DAV\PropPatch $propPatch)
     {
-        $errors = array();
-
-        foreach ($mutations as $prop => $val) {
-            $errors[403][$prop] = null;
-        }
-
-        return $errors;
+        console(__METHOD__, $propPatch);
+        // NOP
     }
 }

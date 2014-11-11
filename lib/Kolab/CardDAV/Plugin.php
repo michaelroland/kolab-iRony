@@ -50,9 +50,9 @@ class Plugin extends CardDAV\Plugin
     {
         parent::initialize($server);
 
-        $server->subscribeEvent('beforeMethod', array($this, 'beforeMethod'));
-        $server->subscribeEvent('afterCreateFile', array($this, 'afterWriteContent'));
-        $server->subscribeEvent('afterWriteContent', array($this, 'afterWriteContent'));
+        $server->on('beforeMethod', array($this, 'beforeMethod'));
+        $server->on('afterCreateFile', array($this, 'afterWriteContent'));
+        $server->on('afterWriteContent', array($this, 'afterWriteContent'));
     }
 
     /**

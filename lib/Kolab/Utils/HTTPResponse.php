@@ -28,9 +28,9 @@ namespace Kolab\Utils;
  */
 class HTTPResponse extends \Sabre\HTTP\Response
 {
-    private $status;
-    private $body = '';
-    private $headers = array();
+    protected $status;
+    protected $body = '';
+    protected $_headers = array();
 
     /**
      * Sends an HTTP status header to the client.
@@ -52,8 +52,9 @@ class HTTPResponse extends \Sabre\HTTP\Response
      * @param bool $replace
      * @return bool
      */
-    public function setHeader($name, $value, $replace = true) {
-        $this->headers[$name] = $value;
+    public function setHeader($name, $value, $replace = true)
+    {
+        $this->_headers[$name] = $value;
         return parent::setHeader($name, $value, $replace);
     }
 
@@ -83,7 +84,7 @@ class HTTPResponse extends \Sabre\HTTP\Response
     public function dump()
     {
         $result_headers = '';
-        foreach ($this->headers as $hdr => $value) {
+        foreach ($this->_headers as $hdr => $value) {
             $result_headers .= "\n$hdr: " . $value;
         }
 

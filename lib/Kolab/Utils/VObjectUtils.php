@@ -61,10 +61,19 @@ class VObjectUtils
      * @param string Property name
      * @param object DateTime
      */
-    public static function datetime_prop($name, $dt, $utc = false)
+    public static function datetime_prop($root, $name, $dt, $utc = false)
     {
-        $vdt = new Property\DateTime($name);
-        $vdt->setDateTime($dt, $dt->_dateonly ? Property\DateTime::DATE : ($utc ? Property\DateTime::UTC : Property\DateTime::LOCALTZ));
+        if ($utc) {
+            $dt->setTimeZone(new \DateTimeZone('UTC'));
+        }
+
+        $vdt = $root->createProperty($name);
+        $vdt->setValue($dt);
+
+        if ($dt->_dateonly) {
+            $vdt['VALUE'] = 'DATE';
+        }
+
         return $vdt;
     }
 

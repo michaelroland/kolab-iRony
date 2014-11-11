@@ -51,8 +51,8 @@ class Plugin extends CalDAV\Plugin
     {
         parent::initialize($server);
 
-        $server->subscribeEvent('afterCreateFile', array($this, 'afterWriteContent'));
-        $server->subscribeEvent('afterWriteContent', array($this, 'afterWriteContent'));
+        $server->on('afterCreateFile', array($this, 'afterWriteContent'));
+        $server->on('afterWriteContent', array($this, 'afterWriteContent'));
     }
 
     /**

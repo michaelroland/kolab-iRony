@@ -62,9 +62,9 @@ class DAVLogger extends DAV\ServerPlugin
     {
         $this->server = $server;
 
-        $server->subscribeEvent('beforeMethod', array($this, '_beforeMethod'), 15);
-        $server->subscribeEvent('exception', array($this, '_exception'));
-        $server->subscribeEvent('exit', array($this, '_exit'));
+        $server->on('beforeMethod', array($this, '_beforeMethod'), 15);
+        $server->on('exception', array($this, '_exception'));
+        $server->on('exit', array($this, '_exit'));
 
         // replace $server->httpResponse with a derived class that can do logging
         $server->httpResponse = new HTTPResponse();
@@ -108,7 +108,7 @@ class DAVLogger extends DAV\ServerPlugin
                 $http_headers[$hdr] = "$hdr: $value";
             }
 
-            $this->write_log('httpraw', $request->getMethod() . ' ' . $request->getUri() . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n" .
+            $this->write_log('httpraw', $request->getMethod() . ' ' . $request->getUrl() . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n" .
                join("\n", $http_headers) . "\n\n" . $http_body);
         }
 
