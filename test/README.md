@@ -11,7 +11,7 @@ Installation
 Download and configure the CalDAVTester suite according to the descroptions
 in the [wiki][1]. Install it anywhere on your system.
 
-Make sure the pxcalendar package is installed. Do this by running
+Make sure the pycalendar package is installed. Do this by running
 
   $ cd <path-to-caldavtester-directory>
   $ ./run.py -s
