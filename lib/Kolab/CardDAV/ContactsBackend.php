@@ -819,6 +819,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
             $vc->PHOTO['ENCODING'] = 'b';
+            // $vc->PHOTO['TYPE'] = 'GIF';
+            // if ($v4) convert to uri; See VCardConverter::convertBinaryToUri()
         }
 
         // add custom properties
@@ -831,13 +833,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             $this->_to_apple($contact, $vc);
         }
 
-        if (!empty($contact['changed']) && is_a($contact['changed'], 'DateTime'))
+        if (!empty($contact['changed']) && is_a($contact['changed'], 'DateTime')) {
             $vc->REV = $contact['changed']->format('Ymd\\THis\\Z');
-
-        // convert to VCard4.0
-        // if ($v4) {
-        //    $vc->convert(VObject\Document::VCARD40);
-        //}
+        }
 
         return $vc->serialize();
     }
