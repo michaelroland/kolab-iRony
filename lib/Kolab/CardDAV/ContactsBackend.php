@@ -820,7 +820,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
-            $vc->PHOTO['ENCODING'] = 'B';
+            $vc->PHOTO['ENCODING'] = 'b';
             // $vc->PHOTO['TYPE'] = 'GIF';
             // if ($v4) convert to uri; See VCardConverter::convertBinaryToUri()
         }
@@ -838,6 +838,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['changed']) && is_a($contact['changed'], 'DateTime')) {
             $vc->REV = $contact['changed']->format('Ymd\\THis\\Z');
         }
+
+        // convert to VCard4.0
+        // if ($v4) {
+        //    $vc->convert(VObject\Document::VCARD40);
+        //}
 
         return $vc->serialize();
     }
@@ -908,7 +913,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
                 case 'EMAIL':
                     $types = array_values(self::prop_filter($prop->offsetGet('type'), 'internet,pref', true));
-                    $contact['email'][] = array('address' => $value 'type' => strtolower($types[0] ?: 'other'));
+                    $contact['email'][] = array('address' => $value, 'type' => strtolower($types[0] ?: 'other'));
                     break;
 
                 case 'URL':
@@ -1105,7 +1110,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $prop->group = $group;
         $vc->add($prop);
 
-        $ablabel = $vc->createProperty('X-ABLabel');
+        $ablabel = $vc->create('X-ABLabel');
         $ablabel->group = $group;
         $ablabel->setValue(in_array($label, $this->xab_known_labels) ? '_$!<'.ucfirst($label).'>!$_' : ucfirst($label));
         $vc->add($ablabel);
