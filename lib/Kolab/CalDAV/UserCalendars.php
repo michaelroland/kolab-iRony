@@ -33,65 +33,8 @@ use Kolab\CalDAV\Calendar;
  * The UserCalenders class contains all calendars associated to one user
  *
  */
-class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtendedCollection, DAVACL\IACL
+class UserCalendars extends \Sabre\CalDAV\CalendarHome implements DAV\IExtendedCollection, DAVACL\IACL
 {
-    private $outbox;
-
-    /**
-     * Returns a list of calendars
-     *
-     * @return array
-     */
-    public function getChildren()
-    {
-        $calendars = $this->caldavBackend->getCalendarsForUser($this->principalInfo['uri']);
-        $objs = array();
-        foreach ($calendars as $calendar) {
-            // TODO: (later) add sharing support by implenting this all
-            if ($this->caldavBackend instanceof Backend\SharingSupport) {
-                if (isset($calendar['{http://calendarserver.org/ns/}shared-url'])) {
-                    $objs[] = new SharedCalendar($this->caldavBackend, $calendar);
-                }
-                else {
-                    $objs[] = new ShareableCalendar($this->caldavBackend, $calendar);
-                }
-            }
-            else {
-                $objs[] = new Calendar($this->caldavBackend, $calendar);
-            }
-        }
-
-        // add support for scheduling AKA free/busy
-        // TODO: remove when CalendarBackend implements SchedulingSupport
-        $objs[] = new Schedule\Outbox($this->principalInfo['uri']);
-
-        // TODO: add notification support (check with clients first, if anybody supports it)
-        if ($this->caldavBackend instanceof Backend\NotificationSupport) {
-            $objs[] = new Notifications\Collection($this->caldavBackend, $this->principalInfo['uri']);
-        }
-
-        return $objs;
-    }
-
-    /**
-     * Returns a single calendar, by name
-     *
-     * @param string $name
-     * @return Calendar
-     */
-    public function getChild($name)
-    {
-        if ($name == 'outbox') {
-            return new Schedule\Outbox($this->principalInfo['uri']);
-        }
-        if ($calendar = $this->caldavBackend->getCalendarByName($name)) {
-            $calendar['principaluri'] = $this->principalInfo['uri'];
-            return new Calendar($this->caldavBackend, $calendar);
-        }
-
-        throw new DAV\Exception\NotFound('Calendar with name \'' . $name . '\' could not be found');
-    }
-
     /**
      * Checks if a calendar exists.
      *
@@ -100,6 +43,14 @@ class UserCalendars extends \Sabre\CalDAV\UserCalendars implements DAV\IExtended
      */
     public function childExists($name)
     {
+        // Special nodes
+        if ($name === 'inbox' || $name === 'outbox') {
+            return true;
+        }
+        if ($name === 'notifications') {
+            return false;
+        }
+
         if ($this->caldavBackend->getCalendarByName($name)) {
             return true;
         }

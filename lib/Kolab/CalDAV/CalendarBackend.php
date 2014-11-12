@@ -42,7 +42,7 @@ use Sabre\VObject;
  * Checkout the Sabre\CalDAV\Backend\BackendInterface for all the methods that must be implemented.
  *
  */
-class CalendarBackend extends CalDAV\Backend\AbstractBackend
+class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\Backend\SchedulingSupport
 {
     private $calendars;
     private $folders;
@@ -628,6 +628,142 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     }
 
 
+    /**********  SchedulingBackend methods  ***********/
+
+    /**
+     * Returns a single scheduling object for the inbox collection.
+     *
+     * The returned array should contain the following elements:
+     *   * uri - A unique basename for the object. This will be used to
+     *           construct a full uri.
+     *   * calendardata - The iCalendar object
+     *   * lastmodified - The last modification date. Can be an int for a unix
+     *                    timestamp, or a PHP DateTime object.
+     *   * etag - A unique token that must change if the object changed.
+     *   * size - The size of the object, in bytes.
+     *
+     * @param string $principalUri
+     * @param string $objectUri
+     * @return array
+     */
+    public function getSchedulingObject($principalUri, $objectUri)
+    {
+        console(__METHOD__, $principalUri, $objectUri);
+
+        if (!$this->is_current_pricipal($principalUri)) {
+            return array();
+        }
+
+        list($calendarId, $objectUid) = explode(':', $objectUri, 2);
+        $uid = VObjectUtils::uri2uid($objectUid, '.ics');
+
+        $event = $this->getCalendarObject($calendarId, $objectUid);
+        if ($event['uri']) {
+            $event['uri'] = $calendarId . ':' . $event['uri'];
+        }
+
+        return $event;
+    }
+
+    /**
+     * Returns all scheduling objects for the inbox collection.
+     *
+     * These objects should be returned as an array. Every item in the array
+     * should follow the same structure as returned from getSchedulingObject.
+     *
+     * The main difference is that 'calendardata' is optional.
+     *
+     * @param string $principalUri
+     * @return array
+     */
+    public function getSchedulingObjects($principalUri)
+    {
+        console(__METHOD__, $principalUri);
+
+        $results = array();
+
+        // we can only access the current user's calendars
+        if (!$this->is_current_pricipal($principalUri)) {
+            return $results;
+        }
+
+        // TODO: list all pending invitation objects with a certain scheduling status ?
+
+/*
+        $query = $this->_event_filter_query(true);
+        foreach (kolab_storage::get_folders('event') as $storage) {
+            // only consider events from personal namespace folders
+            if ($storage->get_namespace() !== 'personal') {
+                continue;
+            }
+
+            $folder_id = $storage->get_uid();
+            foreach ($storage->select($query) as $event) {
+                // post-filter events to only get pending invitations
+                if (!$this->_event_filter_compare($event, true)) {
+                    continue;
+                }
+
+                // get tags/categories from relations
+                $this->load_tags($event);
+
+                $event_uri = $folder_id . ':' . VObjectUtils::uid2uri($event['uid'], '.ics');
+                $results[] = array(
+                    'uri' => $event_uri,
+                    'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
+                    'etag' => self::_get_etag($event),
+                    'size' => $event['_size'],
+                );
+            }
+
+            // keep storage folder reference
+            if (!$this->folders[$folder_id]) {
+                $this->folders[$folder_id] = $storage;
+            }
+        }
+*/
+
+        // TODO: find iTip messages in users email INBOX and move to them default calendar
+        // whenever a CalDAV client fetches the inbox data. This will also remove the message
+        // from the email inbox as the message is considered 'processed'.
+
+        return $results;
+    }
+
+    /**
+     * Deletes a scheduling object from the inbox collection.
+     *
+     * @param string $principalUri
+     * @param string $objectUri
+     * @return void
+     */
+    public function deleteSchedulingObject($principalUri, $objectUri)
+    {
+        console(__METHOD__, $principalUri, $objectUri, $objectData);
+    }
+
+    /**
+     * Creates a new scheduling object. This should land in a users' inbox.
+     *
+     * @param string $principalUri
+     * @param string $objectUri
+     * @param string $objectData
+     * @return void
+     */
+    public function createSchedulingObject($principalUri, $objectUri, $objectData)
+    {
+        console(__METHOD__, $principalUri, $objectUri, $objectData);
+
+        // accept only for current user principal (we don't have permissions for other users)
+        if ($this->is_current_pricipal($principalUri)) {
+
+        }
+        else {
+            // send as iTip?
+        }
+    }
+
+
     /**********  Data conversion utilities  ***********/
 
     /**
@@ -747,17 +883,29 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
     /**
      * Provide basic query for kolab_storage_folder::select()
+     *
+     * @param boolean Filter for inbox events (i.e. status=NEEDS-ACTION)
+     * @return array  List of query parameters for kolab_storage_folder::select()
      */
-    private function _event_filter_query()
+    private function _event_filter_query($inbox = false)
     {
         // get email addresses of the current user
         $user_emails = $this->get_user_emails();
-        $query = array();
+        $query = $subquery = array();
 
         // add query to exclude declined invitations
         foreach ($user_emails as $email) {
-            $query[] = array('tags', '!=', 'x-partstat:' . $email . ':declined');
-            // $query[] = array('tags', '!=', 'x-partstat:' . $email . ':needs-action');
+            if ($inbox) {
+                $subquery[] = array('tags', '=', 'x-partstat:' . $email . ':needs-action');
+                $subquery[] = array('tags', '=', 'x-partstat:' . $email . ':needs-action');
+            }
+            else {
+                $query[] = array('tags', '!=', 'x-partstat:' . $email . ':declined');
+            }
+        }
+
+        if (!empty($subquery)) {
+            $query[] = array($subquery, 'OR');
         }
 
         return $query;
@@ -766,9 +914,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
     /**
      * Check the given event if it matches the filter
      *
+     * @param array    Hash array with event properties
+     * @param boolean  Filter for inbox events (i.e. status=NEEDS-ACTION)
      * @return boolean True if matches, false if not
      */
-    private function _event_filter_compare($event)
+    private function _event_filter_compare($event, $inbox = false)
     {
         static $user_emails;
 
@@ -778,13 +928,18 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
 
         if (is_array($event['attendees'])) {
             foreach ($event['attendees'] as $attendee) {
-                if (in_array($attendee['email'], $user_emails) && $attendee['status'] == 'DECLINED') {
-                    return false;
+                if (in_array($attendee['email'], $user_emails)) {
+                    if ($attendee['status'] == 'DECLINED') {
+                        return false;
+                    }
+                    else if ($inbox && $attendee['status'] == 'NEEDS-ACTION') {
+                        return true;
+                    }
                 }
             }
         }
 
-        return true;
+        return !$inbox;
     }
 
     /**
@@ -800,6 +955,15 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
             $event['_msguid'],
             !empty($event['categories']) ? substr(md5(join(',', (array)$event['categories'])), 0, 16) : '0'
         );
+    }
+
+    /**
+     * Helpter method to determine whether the given principal URI
+     * matches the authenticated user principal.
+     */
+    private function is_current_pricipal($principalUri)
+    {
+        return $principalUri === 'principals/' . HTTPBasic::$current_user;
     }
 
 }

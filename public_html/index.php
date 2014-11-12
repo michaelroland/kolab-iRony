@@ -154,11 +154,9 @@ $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
 
 if ($services['CALDAV']) {
-    $caldav_plugin = new \Kolab\CalDAV\Plugin();
-    $server->addPlugin($caldav_plugin);
-
+    $server->addPlugin(new \Kolab\CalDAV\Plugin());
     $server->addPlugin(new \Kolab\CalDAV\SchedulePlugin());
-    #$server->addPlugin(new \Kolab\CalDAV\IMipPlugin());
+    $server->addPlugin(new \Kolab\CalDAV\IMipPlugin(''));
 }
 
 if ($services['CARDDAV']) {

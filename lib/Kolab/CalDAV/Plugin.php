@@ -26,6 +26,8 @@ namespace Kolab\CalDAV;
 use Sabre\DAV;
 use Sabre\CalDAV;
 use Sabre\VObject;
+use Sabre\HTTP;
+use Sabre\HTTP\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
 
 
@@ -77,45 +79,73 @@ class Plugin extends CalDAV\Plugin
      *
      * @param resource|string $data
      * @param string $path
+     * @param bool $modified Should be set to true, if this event handler
+     *                       changed &$data.
+     * @param RequestInterface $request The http request.
+     * @param ResponseInterface $response The http response.
+     * @param bool $isNew Is the item a new one, or an update.
      * @return void
      */
-    protected function validateICalendar(&$data, $path)
+    protected function validateICalendar(&$data, $path, &$modified, HTTP\RequestInterface $request, HTTP\ResponseInterface $response, $isNew)
     {
         // If it's a stream, we convert it to a string first.
         if (is_resource($data)) {
             $data = stream_get_contents($data);
         }
 
+        $before = md5($data);
         // Converting the data to unicode, if needed.
         $data = DAV\StringUtil::ensureUTF8($data);
 
-        try {
-            // modification: Set options to be more tolerant when parsing extended or invalid properties
-            $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+        if ($before !== md5($data))
+            $modified = true;
 
-            // keep the parsed object in memory for later processing
-            if ($vobj->name == 'VCALENDAR') {
-                self::$parsed_vcalendar = $vobj;
-                foreach ($vobj->getBaseComponents() as $vevent) {
-                    if ($vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
-                        self::$parsed_vevent = $vevent;
-                        break;
+        try {
+            // If the data starts with a [, we can reasonably assume we're dealing
+            // with a jCal object.
+            if (substr($data,0,1) === '[') {
+                $vobj = VObject\Reader::readJson($data);
+
+                // Converting $data back to iCalendar, as that's what we
+                // technically support everywhere.
+                $data = $vobj->serialize();
+                $modified = true;
+            } else {
+                // modification: Set options to be more tolerant when parsing extended or invalid properties
+                $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+
+                // keep the parsed object in memory for later processing
+                if ($vobj->name == 'VCALENDAR') {
+                    self::$parsed_vcalendar = $vobj;
+                    foreach ($vobj->getBaseComponents() as $vevent) {
+                        if ($vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
+                            self::$parsed_vevent = $vevent;
+                            break;
+                        }
                     }
                 }
             }
         }
         catch (VObject\ParseException $e) {
-            throw new DAV\Exception\UnsupportedMediaType('This resource requires valid iCalendar 2.0 data. Parse error: ' . $e->getMessage());
+            throw new DAV\Exception\UnsupportedMediaType('This resource only supports valid iCalendar 2.0 data. Parse error: ' . $e->getMessage());
         }
 
         if ($vobj->name !== 'VCALENDAR') {
             throw new DAV\Exception\UnsupportedMediaType('This collection can only support iCalendar objects.');
         }
 
+        $sCCS = '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set';
+
         // Get the Supported Components for the target calendar
-        list($parentPath,$object) = DAV\URLUtil::splitPath($path);
-        $calendarProperties = $this->server->getProperties($parentPath,array('{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set'));
-        $supportedComponents = $calendarProperties['{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set']->getValue();
+        list($parentPath) = URLUtil::splitPath($path);
+        $calendarProperties = $this->server->getProperties($parentPath, [$sCCS]);
+
+        if (isset($calendarProperties[$sCCS])) {
+            $supportedComponents = $calendarProperties[$sCCS]->getValue();
+        }
+        else {
+            $supportedComponents = ['VTODO', 'VEVENT'];
+        }
 
         $foundType = null;
         $foundUID = null;
@@ -130,7 +160,7 @@ class Plugin extends CalDAV\Plugin
                     if (is_null($foundType)) {
                         $foundType = $component->name;
                         if (!in_array($foundType, $supportedComponents)) {
-                            throw new CalDAV\Exception\InvalidComponentType('This calendar only supports ' . implode(', ', $supportedComponents) . '. We found a ' . $foundType);
+                            throw new CalDAV\Exception\InvalidComponentType('This resource only supports ' . implode(', ', $supportedComponents) . '. We found a ' . $foundType);
                         }
                         if (!isset($component->UID)) {
                             throw new DAV\Exception\BadRequest('Every ' . $component->name . ' component must have an UID');
@@ -153,6 +183,34 @@ class Plugin extends CalDAV\Plugin
         }
         if (!$foundType)
             throw new DAV\Exception\BadRequest('iCalendar object must contain at least 1 of VEVENT, VTODO or VJOURNAL');
+
+        // We use an extra variable to allow event handles to tell us wether
+        // the object was modified or not.
+        //
+        // This helps us determine if we need to re-serialize the object.
+        $subModified = false;
+
+        $this->server->emit(
+            'calendarObjectChange',
+            [
+                $request,
+                $response,
+                $vobj,
+                $parentPath,
+                &$subModified,
+                $isNew
+            ]
+        );
+
+        if ($subModified) {
+            // An event handler told us that it modified the object.
+            $data = $vobj->serialize();
+
+            // Using md5 to figure out if there was an *actual* change.
+            if (!$modified && $before !== md5($data)) {
+                $modified = true;
+            }
+        }
     }
 
     /**

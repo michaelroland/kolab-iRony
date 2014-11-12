@@ -105,6 +105,9 @@ class DAVBackend
                 }
                 return $ret;
             });
+
+        // silently accept the other/non-supported properties
+        $propPatch->setRemainingResultCode(204);
     }
 
     /**

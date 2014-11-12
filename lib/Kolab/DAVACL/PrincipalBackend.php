@@ -24,6 +24,7 @@
 namespace Kolab\DAVACL;
 
 use \rcube;
+use \libcalendaring;
 use Sabre\DAV\Exception;
 use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
@@ -50,11 +51,15 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
 
         if (HTTPBasic::$current_user) {
             $user_email = rcube::get_instance()->get_user_email();
+            $emails = libcalendaring::get_instance()->get_user_emails();
+
             return array(
                 'uri' => 'principals/' . HTTPBasic::$current_user,
                 '{DAV:}displayname' => HTTPBasic::$current_user,
                 '{http://sabredav.org/ns}email-address' => $user_email,
-                '{http://calendarserver.org/ns/}email-address-set' => $user_email,
+                '{DAV:}alternate-URI-set' => array_map(function($email) {
+                        return 'mailto:' . $email;
+                    }, $emails),
             );
         }
 
@@ -120,7 +125,6 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
                 'uri' => $path,
                 '{DAV:}displayname' => $localname,
                 '{http://sabredav.org/ns}email-address' => $name,
-                '{http://calendarserver.org/ns/}email-address-set' => $name,
             );
         }
 

@@ -51,7 +51,7 @@ class SchedulePlugin extends CalDAV\Schedule\Plugin
     {
         console(__METHOD__, $email, $start, $end);
 
-        $email = preg_replace('!^mailto:!', '', $email);
+        $email = preg_replace('!^mailto:!i', '', $email);
 
         // pass-through the pre-generatd free/busy feed from Kolab's free/busy service
         if ($fburl = \kolab_storage::get_freebusy_url($email)) {
