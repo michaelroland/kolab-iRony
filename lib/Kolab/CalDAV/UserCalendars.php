@@ -36,6 +36,22 @@ use Kolab\CalDAV\Calendar;
 class UserCalendars extends \Sabre\CalDAV\CalendarHome implements DAV\IExtendedCollection, DAVACL\IACL
 {
     /**
+     * Returns a single calendar, by name
+     *
+     * @param string $name
+     * @return Calendar
+     */
+    public function getChild($name)
+    {
+        if (!in_array($name, array('inbox','outbox','notifications')) && ($calendar = $this->caldavBackend->getCalendarByName($name))) {
+            $calendar['principaluri'] = $this->principalInfo['uri'];
+            return new Calendar($this->caldavBackend, $calendar);
+        }
+
+        return parent::getChild($name);
+    }
+
+    /**
      * Checks if a calendar exists.
      *
      * @param string $name

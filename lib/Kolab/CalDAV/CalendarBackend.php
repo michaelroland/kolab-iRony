@@ -168,7 +168,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         }
 
         // retry with subscribed = false (#2701)
-        if (empty($this->calendars[$id]) && $id != 'outbox' && $this->subscribed === null && rcube::get_instance()->config->get('kolab_use_subscriptions')) {
+        if (empty($this->calendars[$id]) && !in_array($id, array('inbox','outbox','notifications')) && $this->subscribed === null && rcube::get_instance()->config->get('kolab_use_subscriptions')) {
             $this->subscribed = false;
             unset($this->calendars);
             return $this->getCalendarByName($calendarUri);
