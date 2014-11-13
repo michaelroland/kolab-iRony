@@ -261,7 +261,7 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
         }
 
         // search users via LDAP
-        if (!empty($email) || !empty($name)) {
+        if (empty($results) && (!empty($email) || !empty($name))) {
             foreach (kolab_storage::search_users($email ?: $name, 2, array('email'), 10) as $user) {
                 $results[] = 'principals/' . $user['email'];
             }
