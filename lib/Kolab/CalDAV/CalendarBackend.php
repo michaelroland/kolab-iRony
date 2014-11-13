@@ -134,6 +134,10 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
     {
         console(__METHOD__, $principalUri);
 
+        if (!$this->is_current_pricipal($principalUri)) {
+            return array();
+        }
+
         $this->_read_calendars();
 
         $calendars = array();
@@ -591,6 +595,19 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
               }
               if (!empty($filter['time-range']['start'])) {
                   $query[] = array('dtend',   '>=', $filter['time-range']['start']);
+              }
+          }
+          if (is_array($filter['prop-filters'])) {
+              foreach ($filter['prop-filters'] as $prop_filter) {
+                  $match = $prop_filter['text-match'];
+                  if ($match['value']) {
+                      $op = $match['negate-condition'] ? '!=' : '=';
+                      switch ($prop_filter['name']) {
+                          case 'UID':
+                              $query[] = array('uid', $op, $match['value']);
+                              break;
+                      }
+                  }
               }
           }
       }

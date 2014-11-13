@@ -24,7 +24,9 @@
 namespace Kolab\DAVACL;
 
 use \rcube;
+use \rcube_utils;
 use \libcalendaring;
+use \kolab_storage;
 use Sabre\DAV\Exception;
 use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
@@ -118,12 +120,18 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
         if ($prefix == 'principals' && $name == HTTPBasic::$current_user) {
             return $this->getCurrentUser();
         }
-        else if ($prefix == 'principals' && \rcube_utils::check_email($name, false)) {
-            // TODO: do a user lookup in LDAP
+        else if ($prefix == 'principals' && rcube_utils::check_email($name, false)) {
             list($localname,$domain) = explode('@', $name);
+            $displayname = ucfirst(str_replace('.', ' ', $localname));
+
+            // Do a user lookup in LDAP
+            foreach (kolab_storage::search_users($name, 1, array('email'), 1) as $user) {
+                $displayname = $user['displayname'];
+            }
+
             return array(
                 'uri' => $path,
-                '{DAV:}displayname' => $localname,
+                '{DAV:}displayname' => $displayname,
                 '{http://sabredav.org/ns}email-address' => $name,
             );
         }
@@ -228,10 +236,10 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
     {
         console(__METHOD__, $prefixPath, $searchProperties);
 
-        $email = null;
+        $email = null; $name = null;
         $results = array();
         $current_user = $this->getCurrentUser();
-        foreach($searchProperties as $property => $value) {
+        foreach ($searchProperties as $property => $value) {
             // check search property against the current user
             if ($current_user[$property] == $value) {
                 $results[] = $current_user['uri'];
@@ -243,15 +251,20 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
                     break;
 
                 case '{DAV:}displayname':
+                    $name = $value;
+                    break;
+
                 default :
                     // Unsupported property
                     return array();
             }
         }
 
-        // we only support search by email
-        if (!empty($email)) {
-            // TODO: search via LDAP
+        // search users via LDAP
+        if (!empty($email) || !empty($name)) {
+            foreach (kolab_storage::search_users($email ?: $name, 2, array('email'), 10) as $user) {
+                $results[] = 'principals/' . $user['email'];
+            }
         }
 
         return array_unique($results);
