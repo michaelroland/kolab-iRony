@@ -635,7 +635,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 $vobject = Plugin::$parsed_vcard;
             }
             else {
-                VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
                 $vobject = VObject\Reader::read($cardData, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
             }
 
@@ -818,7 +817,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
-            $vc->PHOTO['ENCODING'] = 'b';
+            $vc->PHOTO['ENCODING'] = 'B';
             // $vc->PHOTO['TYPE'] = 'GIF';
             // if ($v4) convert to uri; See VCardConverter::convertBinaryToUri()
         }
@@ -1100,7 +1099,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $prop->group = $group;
         $vc->add($prop);
 
-        $ablabel = $vc->create('X-ABLabel');
+        $ablabel = $vc->createProperty('X-ABLabel');
         $ablabel->group = $group;
         $ablabel->setValue(in_array($label, $this->xab_known_labels) ? '_$!<'.ucfirst($label).'>!$_' : ucfirst($label));
         $vc->add($ablabel);

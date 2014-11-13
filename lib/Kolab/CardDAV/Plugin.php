@@ -123,7 +123,6 @@ class Plugin extends CardDAV\Plugin
         $data = DAV\StringUtil::ensureUTF8($data);
 
         try {
-            VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
             $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
 
             if ($vobj->name == 'VCARD')
@@ -140,6 +139,30 @@ class Plugin extends CardDAV\Plugin
         if (!isset($vobj->UID)) {
             throw new DAV\Exception\BadRequest('Every vcard must have a UID.');
         }
+    }
+
+    /**
+     * Converts a vcard blob to a different version, or jcard.
+     *
+     * (optimized version that skips parsing and re-serialization if possible)
+     *
+     * @param string $data
+     * @param string $target
+     * @return string
+     */
+    protected function convertVCard($data, $target)
+    {
+        $version = 'vcard3';
+        if (preg_match('/VERSION:(\d)/', $data, $m)) {
+            $version = 'vcard' . $m[1];
+        }
+
+        // no conversion needed
+        if ($target == $version) {
+            return $data;
+        }
+
+        return parent::convertVCard($data, $target);
     }
 
     /**
