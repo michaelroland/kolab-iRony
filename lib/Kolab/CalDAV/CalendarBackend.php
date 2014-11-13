@@ -64,6 +64,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         $this->calendars = $this->folders = $this->aliases = array();
 
         $order = 1;
+        $default_calendar_id = null;
         foreach (kolab_storage::sort_folders($folders) as $folder) {
             $id = $folder->get_uid();
             $this->folders[$id] = $folder;
@@ -78,6 +79,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                 '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
                 '{http://apple.com/ns/ical/}calendar-order' => $order++,
             );
+
+            if ($folder->default && $folder->type == 'event') {
+                $default_calendar_id = $id;
+            }
+
             $this->aliases[$folder->name] = $id;
 
             // these properties are used for sharing supprt (not yet active)
@@ -87,6 +93,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                 $this->calendars[$id]['{http://calendarserver.org/ns/}owner-principal'] = $folder->get_owner();
                 $this->calendars[$id]['{http://sabredav.org/ns}read-only'] = strpos($rights, 'i') === false;
             }
+        }
+
+        // put default calendar on top of the list:
+        // {urn:ietf:params:xml:ns:caldav}schedule-default-calendar-URL is derived from the first item on this list
+        if ($default_calendar_id) {
+            $this->calendars = array($default_calendar_id => $this->calendars[$default_calendar_id]) + $this->calendars;
         }
 
         return $this->calendars;
