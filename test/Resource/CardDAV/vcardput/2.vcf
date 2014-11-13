@@ -5,7 +5,7 @@ N:Contact;Mulberry;;;
 FN:Mulberry Contact
 NICKNAME:mulberry
 ORG:Apple Inc.;
-EMAIL;TYPE=INTERNET;TYPE=WORK:mulberry@example.com
+EMAIL;TYPE=INTERNET,WORK:mulberry@example.com
 TEL;TYPE=HOME:777-777-7777
 TEL;TYPE=WORK:8888888888
 TEL;TYPE=FAX:5555555555

@@ -2,7 +2,7 @@ BEGIN:VCARD
 VERSION:3.0
 N:Picture;With;;;
 FN:With Picture
-EMAIL;TYPE=INTERNET;TYPE=WORK:withpicture@example.com
+EMAIL;TYPE=INTERNET,WORK:withpicture@example.com
 TEL;TYPE=WORK:777-777-7777
 TEL;TYPE=CELL:8888888888
 ADR;TYPE=WORK:;;1234 Golly Street;Sunnyside;CA;99999;USA

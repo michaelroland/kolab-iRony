@@ -448,7 +448,7 @@
 			</substitution>
 			<substitution>
 				<key>$principaluri%d:</key>
-				<value>$principalcollection:dav.user%02d%%40example.org/</value>
+				<value>$principalcollection:dav.user%02d@example.org/</value>
 			</substitution>
 			<substitution>
 				<key>$principal%dnoslash:</key>
