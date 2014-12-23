@@ -43,6 +43,11 @@ class UserCalendars extends \Sabre\CalDAV\CalendarHome implements DAV\IExtendedC
      */
     public function getChild($name)
     {
+        // Special nodes
+        if ($name === 'inbox') {
+            return new ScheduleInbox($this->caldavBackend, $this->principalInfo['uri']);
+        }
+
         if (!in_array($name, array('inbox','outbox','notifications')) && ($calendar = $this->caldavBackend->getCalendarByName($name))) {
             $calendar['principaluri'] = $this->principalInfo['uri'];
             return new Calendar($this->caldavBackend, $calendar);

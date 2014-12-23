@@ -52,6 +52,11 @@ $config['kolabdav_user_debug'] = false;
 // (bitmask of these values: 2 = HTTP Requests, 4 = HTTP Responses)
 $config['kolabdav_http_log'] = 0;
 
+// expose iTip invitations from email inbox in CalDAV scheduling inbox.
+// this will make capable CalDAV clients process event invitations and
+// as a result, the invitation messages are removed from the email inbox.
+$config['kolabdav_caldav_inbox'] = false;
+
 // Enables the CardDAV Directory Gateway Extension by exposing an
 // LDAP-based address book in the pricipals address book collection.
 // Properties of this option are the same as for $config['ldap_public'] entries.

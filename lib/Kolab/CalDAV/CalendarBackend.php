@@ -26,6 +26,7 @@ namespace Kolab\CalDAV;
 use \PEAR;
 use \rcube;
 use \rcube_charset;
+use \rcube_message;
 use \kolab_storage;
 use \kolab_storage_config;
 use \libcalendaring;
@@ -683,15 +684,25 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
             return array();
         }
 
-        list($calendarId, $objectUid) = explode(':', $objectUri, 2);
-        $uid = VObjectUtils::uri2uid($objectUid, '.ics');
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
+        list($msguid, $mime_id) = explode('-', $uid, 2);
 
-        $event = $this->getCalendarObject($calendarId, $objectUid);
-        if ($event['uri']) {
-            $event['uri'] = $calendarId . ':' . $event['uri'];
+        $message = new rcube_message($msguid, 'INBOX');
+        if ($ical = $message->get_part_content($mime_id, null, false, 0, false)) {
+            if ($event = $this->parse_calendar_data($ical, null)) {
+                if ($event['_type'] == 'event') {
+                    $event['_msguid'] = $msguid;
+                    return array(
+                        'uri' => $objectUri,
+                        'calendardata' => $ical,
+                        'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
+                        'etag' => self::_get_etag($event),
+                    );
+                }
+            }
         }
 
-        return $event;
+        return array();
     }
 
     /**
@@ -711,50 +722,33 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
 
         $results = array();
 
-        // we can only access the current user's calendars
-        if (!$this->is_current_pricipal($principalUri)) {
+        // we can only access the current user's calendars (if enabled)
+        if (!$this->is_current_pricipal($principalUri) || !rcube::get_instance()->config->get('kolabdav_caldav_inbox', false)) {
             return $results;
         }
 
-        // TODO: list all pending invitation objects with a certain scheduling status ?
+        // find iTip messages in users email INBOX and extract the ics attachment.
+        foreach ($this->search_email_inbox() as $msg) {
+            list($msguid, $mime_id) = $msg;
+            $message = new rcube_message($msguid, 'INBOX');
+            if ($ical = $message->get_part_content($mime_id, null, false, 0, false)) {
+                if ($event = $this->parse_calendar_data($ical, null)) {
+                    if ($event['_type'] != 'event') {
+                        continue;
+                    }
 
-/*
-        $query = $this->_event_filter_query(true);
-        foreach (kolab_storage::get_folders('event') as $storage) {
-            // only consider events from personal namespace folders
-            if ($storage->get_namespace() !== 'personal') {
-                continue;
-            }
+                    $event['_msguid'] = $msguid;
+                    $results[] = array(
+                        'uri' => VObjectUtils::uid2uri($msguid . '-' . $mime_id, '.ics'),
+                        'calendardata' => $ical,
+                        'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
+                        'etag' => self::_get_etag($event),
+                    );
 
-            $folder_id = $storage->get_uid();
-            foreach ($storage->select($query) as $event) {
-                // post-filter events to only get pending invitations
-                if (!$this->_event_filter_compare($event, true)) {
-                    continue;
+                    break;
                 }
-
-                // get tags/categories from relations
-                $this->load_tags($event);
-
-                $event_uri = $folder_id . ':' . VObjectUtils::uid2uri($event['uid'], '.ics');
-                $results[] = array(
-                    'uri' => $event_uri,
-                    'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
-                    'etag' => self::_get_etag($event),
-                    'size' => $event['_size'],
-                );
-            }
-
-            // keep storage folder reference
-            if (!$this->folders[$folder_id]) {
-                $this->folders[$folder_id] = $storage;
             }
         }
-*/
-
-        // TODO: find iTip messages in users email INBOX and move to them default calendar
-        // whenever a CalDAV client fetches the inbox data. This will also remove the message
-        // from the email inbox as the message is considered 'processed'.
 
         return $results;
     }
@@ -768,7 +762,65 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
      */
     public function deleteSchedulingObject($principalUri, $objectUri)
     {
-        console(__METHOD__, $principalUri, $objectUri, $objectData);
+        console(__METHOD__, $principalUri, $objectUri);
+
+        $rcube = rcube::get_instance();
+
+        // we can only access the current user's inbox (if enabled)
+        if (!$this->is_current_pricipal($principalUri) || !$rcube->config->get('kolabdav_caldav_inbox', false)) {
+            return;
+        }
+
+        // TODO: get the referenced iTip message from email INBOX and
+        // copy it to the default calendar. This will also remove the message
+        // from the email inbox as the message is considered 'processed'.
+        $uid = VObjectUtils::uri2uid($objectUri, '.ics');
+        list($msguid, $mime_id) = explode('-', $uid, 2);
+
+        $message = new rcube_message($msguid, 'INBOX');
+        if ($ical = $message->get_part_content($mime_id, null, false, 0, false)) {
+            if ($object = $this->parse_calendar_data($ical, null)) {
+                if ($object['_type'] != 'event') {
+                    return;
+                }
+
+                // get default calendar and search for an existing copy
+                $calendarId = reset(array_keys($this->_read_calendars()));
+                $storage = $this->get_storage_folder($calendarId);
+                $existing = $storage->get_object($object['uid']);
+
+                // copy meta data (starting with _) from old object
+                if (!empty($existing)) {
+                    foreach ((array)$existing as $key => $val) {
+                        if (!isset($object[$key]) && $key[0] == '_')
+                            $object[$key] = $val;
+                    }
+                }
+
+                // TODO: if iTip REPLY or CANCEL, only copy necessary properties
+
+                // map attachments attribute
+                $object['_attachments'] = $object['attachments'];
+                unset($object['attachments']);
+
+                $success = $storage->save($object, $object['_type'], $existing['uid']);
+                if (!$success) {
+                    rcube::raise_error(array(
+                        'code' => 600, 'type' => 'php',
+                        'file' => __FILE__, 'line' => __LINE__,
+                        'message' => "Error saving $object[_type] object to Kolab server"),
+                        true, false);
+
+                    throw new DAV\Exception('Error saving calendar object to backend');
+                }
+
+                // remove iTip message from email inbox
+                // TODO: move to Trash instead ?
+                $imap = $rcube->get_storage();
+                $imap->move_message($msguid, 'Trash', 'INBOX');
+                //console("DELETE $msguid", $imap->delete_message($msguid, 'INBOX'));
+            }
+        }
     }
 
     /**
@@ -790,6 +842,73 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         else {
             // send as iTip?
         }
+    }
+
+    /**
+     * Return the ctag value for the scheduling inbox
+     */
+    public function getSchedulingInboxCtag($principalUri)
+    {
+        $rcube = rcube::get_instance();
+
+        if ($this->is_current_pricipal($principalUri) && $rcube->config->get('kolabdav_caldav_inbox', false)) {
+            // we could use the INBOX imap folder properties but these are likely subject to
+            // frequent changes without new invitations. Let's count potential iTip messages:
+            $candidates = $this->search_email_inbox();
+
+            if (count($candidates)) {
+                $fdata = $rcube->storage->folder_data('INBOX');
+                return sprintf('%d-%d-%d-%d',
+                    $fdata['UIDVALIDITY'],
+                    $fdata['HIGHESTMODSEQ'],
+                    $fdata['UIDNEXT'],
+                    count($candidates)
+                );
+            }
+        }
+
+        return "empty-000";
+    }
+
+    /**
+     *
+     */
+    protected function search_email_inbox()
+    {
+        $result = array();
+        $rcube = rcube::get_instance();
+        $imap = $rcube->get_storage();
+
+        // FIXME: search by content-type doesn't return any results from Cyrus IMAP
+        // $query = $imap->search_once('INBOX', 'UNDELETED OR OR HEADER Content-Type text/calendar HEADER Content-Type multipart/mixed HEADER Content-Type multipart/alternative');
+        $query = $imap->search_once('INBOX', 'UNDELETED');
+        if ($query && $query->count() > 0) {
+            foreach ($query->get() as $msguid) {
+                // get bodystructure and check for iTip parts
+                $message = new rcube_message($msguid, 'INBOX');
+                foreach ((array)$message->mime_parts as $part) {
+                    if (self::part_is_itip($part)) {
+                        $result[] = array($msguid, $part->mime_id);
+                    }
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Checks if specified message part is a vcalendar data
+     *
+     * @param rcube_message_part Part object
+     * @return boolean True if part is of type vcard
+     */
+    protected static function part_is_itip($part)
+    {
+        return (
+            in_array($part->mimetype, array('text/calendar', 'text/x-vcalendar', 'application/ics')) ||
+            ($part->mimetype == 'application/x-any' && $part->filename && preg_match('/\.ics$/i', $part->filename))
+        ) && !empty($part->ctype_parameters['method']);
     }
 
 
@@ -852,6 +971,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
 
             // return the first object
             if (count($objects)) {
+                $objects[0]['_method'] = $ical->method;
                 return $objects[0];
             }
         }
