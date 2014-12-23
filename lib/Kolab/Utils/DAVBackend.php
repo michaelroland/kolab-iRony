@@ -195,7 +195,7 @@ class DAVBackend
                     $comp_types = $val->getValue();
                     $comp_type = $comp_types[0];
                     if (!empty($type_map[$comp_type]))
-                        $type = $type_map[$comp_type];
+                        $props['type'] = $type = $type_map[$comp_type];
                     break;
 
                 case '{urn:ietf:params:xml:ns:caldav}calendar-description':
