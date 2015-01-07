@@ -1,0 +1,17 @@
+{
+	"name": "kolab/irony",
+	"description": "iRony - The Kolab WebDAV/CalDAV/CardDAV Server",
+	"license": "AGPL-3.0",
+	"version": "0.3-dev",
+	"require": {
+		"php": ">=5.3.3"
+	},
+	"autoload": {
+		"psr-0": {
+			"": "/usr/share/pear/"
+		},
+		"psr-4": {
+			"": "/usr/share/php/"
+		}
+	}
+}
