@@ -100,7 +100,7 @@ class DAVLogger extends DAV\ServerPlugin
 
             // catch all headers
             $http_headers = array();
-            foreach (apache_request_headers() as $hdr => $value) {
+            foreach ($this->get_request_headers() as $hdr => $value) {
                 if (strtolower($hdr) == 'authorization') {
                     $method = preg_match('/^((basic|digest)\s+)/i', $value, $m) ? $m[1] : '';
                     $value = $method . str_repeat('*', strlen($value) - strlen($method));
@@ -116,6 +116,32 @@ class DAVLogger extends DAV\ServerPlugin
         if ($this->loglevel & self::CONSOLE) {
            $this->write_log('console', $method . ' ' . $uri);
         }
+    }
+
+    /*
+     * Wrapper function in case apache_request_headers() is not available
+     *
+     * @return array
+     */
+    public function get_request_headers()
+    {
+        if (function_exists('apache_request_headers')) {
+            return apache_request_headers();
+        }
+
+        $return = array();
+        foreach ($_SERVER as $key => $value) {
+            if (preg_match('/^HTTP_(.*)/',$key,$regs)) {
+                // restore original letter case
+                $key = str_replace('_',' ',$regs[1]);
+                $key = ucwords(strtolower($key));
+                $key = str_replace(' ','-',$key);
+
+                // build return array
+                $return[$key] = $value;
+            }
+        }
+        return $return;
     }
 
     /**
