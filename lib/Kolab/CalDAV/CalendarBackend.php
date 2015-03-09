@@ -1013,7 +1013,14 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
             };
         }
 
-        return $ical->export(array($event), null, false, $get_attachment, false);
+        $events = array($event);
+
+        // add more instances from exceptions (not recurrence) to the output
+        if (!empty($event['exceptions']) && empty($event['recurrence'])) {
+            $events = array_merge($events, $event['exceptions']);
+        }
+
+        return $ical->export($events, null, false, $get_attachment, false);
     }
 
     /**
