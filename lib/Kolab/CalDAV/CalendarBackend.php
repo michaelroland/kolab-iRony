@@ -119,6 +119,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         }
 
         if ($this->folders[$id]) {
+            DAVBackend::check_storage_folder($this->folders[$id]);
             return $this->folders[$id];
         }
         else {

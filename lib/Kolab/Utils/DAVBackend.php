@@ -27,6 +27,7 @@ use \rcube;
 use \kolab_storage;
 use \rcube_utils;
 use \rcube_charset;
+use Sabre\DAV;
 
 /**
  *
@@ -49,11 +50,42 @@ class DAVBackend
     public static function get_storage_folder($uid, $type)
     {
         foreach (kolab_storage::get_folders($type, false) as $folder) {
-            if ($folder->get_uid() == $uid)
+            if ($folder->get_uid() == $uid) {
+                self::check_storage_folder($folder);
                 return $folder;
+            }
         }
 
-        return null;
+        self::check_storage_folder(null);
+    }
+
+    /**
+     * Check the given storage folder instance for validity and throw
+     * the right exceptions according to the error state.
+     */
+    public static function check_storage_folder($folder)
+    {
+        if ($folder == null) {
+            throw new DAV\Exception\NotFound('The requested collection was not found');
+        }
+
+        if (!$folder->valid || $folder->get_error()) {
+            $error = $folder->get_error();
+            if ($error === kolab_storage::ERROR_IMAP_CONN) {
+                throw new DAV\Exception\ServiceUnavailable('The service is temporarily unavailable (Storage failure)');
+            }
+            else if ($error === kolab_storage::ERROR_CACHE_DB) {
+                throw new DAV\Exception\ServiceUnavailable('The service is temporarily unavailable (Cache failure)');
+            }
+            else if ($error === kolab_storage::ERROR_NO_PERMISSION) {
+                throw new DAV\Exception\Forbidden('Access to this collection is not permitted');
+            }
+            else if ($error === kolab_storage::ERROR_INVALID_FOLDER) {
+                throw new DAV\Exception\NotFound('The requested collection was not found');
+            }
+
+            throw new DAV\Exception('Internal Server Error');
+        }
     }
 
     /**
