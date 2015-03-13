@@ -23,8 +23,6 @@
 
 namespace Kolab\DAV;
 
-use \rcube;
-use \rcube_mime;
 use \Exception;
 
 /**
@@ -99,7 +97,7 @@ class Node implements \Sabre\DAV\INode
     /**
      * Deletes the current node (folder)
      *
-     * @throws Sabre\DAV\Exception\Forbidden
+     * @throws Sabre\DAV\Exception
      * @return void
      */
     public function delete()
@@ -108,7 +106,7 @@ class Node implements \Sabre\DAV\INode
             $this->backend->folder_delete($this->path);
         }
         catch (Exception $e) {
-            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         // reset cache
@@ -120,7 +118,7 @@ class Node implements \Sabre\DAV\INode
     /**
      * Renames the node
      *
-     * @throws Sabre\DAV\Exception\Forbidden
+     * @throws Sabre\DAV\Exception
      * @param string $name The new name
      * @return void
      */
@@ -136,7 +134,7 @@ class Node implements \Sabre\DAV\INode
             $this->backend->$method($this->path, $newname);
         }
         catch (Exception $e) {
-            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         // reset cache
@@ -192,5 +190,26 @@ class Node implements \Sabre\DAV\INode
         );
 
         return $filedata;
+    }
+
+    /**
+     * Convert Chwala exceptions to Sabre exceptions
+     *
+     * @param Exception Chwala exception
+     * @throws Sabre\DAV\Exception
+     */
+    protected function throw_exception($e)
+    {
+        $error = $e->getCode();
+        $msg   = $e->getMessage();
+
+        if ($error == \file_storage::ERROR_UNAVAILABLE) {
+            throw new \Sabre\DAV\Exception\ServiceUnavailable($msg);
+        }
+        else if ($error == \kolab_storage::ERROR_FORBIDDEN) {
+            throw new \Sabre\DAV\Exception\Forbidden($msg);
+        }
+
+        throw new \Sabre\DAV\Exception($msg);
     }
 }

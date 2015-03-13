@@ -28,7 +28,7 @@ use \Exception;
 /**
  * Collection class
  */
-class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
+class Collection extends Node implements \Sabre\DAV\ICollection
 {
     const ROOT_DIRECTORY = 'files';
 
@@ -51,8 +51,8 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
             $folders = $folders['list'];
         }
         catch (Exception $e) {
+            $this->throw_exception($e);
         }
-
 
         // get subfolders
         foreach ($folders as $folder) {
@@ -114,7 +114,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      * exist.
      *
      * @param string $name
-     * @throws Sabre\DAV\Exception\NotFound
+     * @throws Sabre\DAV\Exception
      * @return INode
      */
     public function getChild($name)
@@ -174,6 +174,8 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      *
      * @param string $name Name of the file
      * @param resource|string $data Initial payload
+     *
+     * @throws Sabre\DAV\Exception
      * @return null|string
      */
     public function createFile($name, $data = null)
@@ -190,7 +192,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
             $this->backend->file_create($filename, $filedata);
         }
         catch (Exception $e) {
-//            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         // reset cache
@@ -201,7 +203,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
      * Creates a new subdirectory
      *
      * @param string $name
-     * @throws Exception\Forbidden
+     * @throws Sabre\DAV\Exception
      * @return void
      */
     public function createDirectory($name)
@@ -217,7 +219,7 @@ class Collection extends \Kolab\DAV\Node implements \Sabre\DAV\ICollection
             $this->backend->folder_create($folder);
         }
         catch (Exception $e) {
-            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         // reset cache

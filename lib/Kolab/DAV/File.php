@@ -23,7 +23,6 @@
 
 namespace Kolab\DAV;
 
-use \rcube;
 use \Exception;
 use \DateTime;
 
@@ -51,6 +50,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
      * return an ETag, and just return null.
      *
      * @param resource $data
+     * @throws Sabre\DAV\Exception
      * @return string|null
      */
     public function put($data)
@@ -61,13 +61,14 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
             $this->backend->file_update($this->path, $filedata);
         }
         catch (Exception $e) {
-//            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         try {
             $this->data = $this->backend->file_info($this->path);
         }
         catch (Exception $e) {
+            $this->throw_exception($e);
         }
 
         return $this->getETag();
@@ -78,6 +79,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
      *
      * This method may either return a string or a readable stream resource
      *
+     * @throws Sabre\DAV\Exception
      * @return mixed
      */
     public function get()
@@ -88,7 +90,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
             rewind($fp);
         }
         catch (Exception $e) {
-//            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         return $fp;
@@ -97,6 +99,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
     /**
      * Delete the current file
      *
+     * @throws Sabre\DAV\Exception
      * @return void
      */
     public function delete()
@@ -105,7 +108,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
             $this->backend->file_delete($this->path);
         }
         catch (Exception $e) {
-//            throw new \Sabre\DAV\Exception\Forbidden($e->getMessage());
+            $this->throw_exception($e);
         }
 
         // reset cache
