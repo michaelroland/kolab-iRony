@@ -611,8 +611,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
     private $phonetypes = array(
         'main'    => 'voice',
-        'homefax' => 'fax',
-        'workfax' => 'fax',
+        'homefax' => 'home,fax',
+        'workfax' => 'work,fax',
         'mobile'  => 'cell',
         'other'   => 'textphone',
     );
@@ -743,20 +743,21 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         foreach ((array)$contact['email'] as $email) {
-            $vemail = $vc->create('EMAIL', $email['address'], array('type' => 'INTERNET'));
-            if (!empty($email['type'])) {
-                $vemail['type']->addValue(strtoupper($email['type']));
-            }
-            $vc->add($vemail);
+            $types = array('INTERNET');
+            if (!empty($email['type']))
+                $types = array_merge($types, explode(',', strtoupper($email['type'])));
+            $vc->add('EMAIL', $email['address'], array('type' => $types));
         }
 
         foreach ((array)$contact['phone'] as $phone) {
             $type = $this->phonetypes[$phone['type']] ?: $phone['type'];
-            $vc->add('TEL', $phone['number'], array('type' => strtoupper($type)));
+            $params = !empty($type) ? array('type' => explode(',', strtoupper($type))) : array();
+            $vc->add('TEL', $phone['number'], $params);
         }
 
         foreach ((array)$contact['website'] as $website) {
-            $vc->add('URL', $website['url'], array('type' => strtoupper($website['type'])));
+            $params = !empty($website['type']) ? array('type' => explode(',', strtoupper($website['type']))) : array();
+            $vc->add('URL', $website['url'], $params);
         }
 
         $improtocolmap = array_flip($this->improtocols);
@@ -767,7 +768,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         }
 
         foreach ((array)$contact['address'] as $adr) {
-            $vadr = $vc->create('ADR', null, array('type' => strtoupper($adr['type'])));
+            $params = !empty($adr['type']) ? array('type' => strtoupper($adr['type'])) : array();
+            $vadr = $vc->create('ADR', null, $params);
             $vadr->setParts(array('','', $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']));
             $vc->add($vadr);
         }
@@ -868,6 +870,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $this->_from_apple($vc);
 
         $phonetypemap = array_flip($this->phonetypes);
+        $phonetypemap['fax,home'] = 'homefax';
+        $phonetypemap['fax,work'] = 'workfax';
 
         // map attributes to internal fields
         foreach ($vc->children as $prop) {
@@ -903,24 +907,25 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'EMAIL':
-                    $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
-                    $contact['email'][] = array('address' => $value, 'type' => strtolower($types[0] ?: 'other'));
+                    $types = array_values(self::prop_filter($prop->offsetGet('type'), 'internet,pref', true));
+                    $contact['email'][] = array('address' => $value 'type' => strtolower($types[0] ?: 'other'));
                     break;
 
                 case 'URL':
-                    $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
+                    $types = array_values(self::prop_filter($prop->offsetGet('type'), 'internet,pref', true));
                     $contact['website'][] = array('url' => $value, 'type' => strtolower($types[0]));
                     break;
 
                 case 'TEL':
-                    $types = array_values(self::array_filter($prop->offsetGet('type'), 'internet,pref', true));
-                    $type = strtolower($types[0]);
+                    $types  = array_values(self::prop_filter($prop->offsetGet('type'), 'voice,pref', true));
+                    $types_ = strtolower(join(',', $types));
+                    $type = isset($phonetypemap[$types_]) ? $types_ : strtolower($types[0]);
                     $contact['phone'][] = array('number' => $value, 'type' => $phonetypemap[$type] ?: $type);
                     break;
 
                 case 'ADR':
-                    $type = $prop->offsetGet('type') ?: $prop->parameters[0];
-                    $adr = array('type' => strtolower(strval($type) ?: $type->name));
+                    $types = array_values(self::prop_filter($prop->offsetGet('type'), 'pref', true));
+                    $adr = array('type' => strtolower(!empty($types) ? strval($types[0]) : $prop->parameters[0]->name));
                     list(,, $adr['street'], $adr['locality'], $adr['region'], $adr['code'], $adr['country']) = $prop->getParts();
                     $contact['address'][] = $adr;
                     break;
@@ -1117,10 +1122,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      *
      * @return array The filtered array
      */
-    private static function array_filter($arr, $values, $inverse = false)
+    private static function prop_filter($arr, $values, $inverse = false)
     {
         if (!is_array($values)) {
             $values = explode(',', $values);
+        }
+
+        // explode single, comma-separated value
+        if (count($arr) == 1 && strpos($arr[0], ',')) {
+            $arr = explode(',', $arr[0]);
         }
 
         $result = array();
