@@ -820,7 +820,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
-            $vc->PHOTO['ENCODING'] = 'b';
+            $vc->PHOTO['ENCODING'] = 'B';
             // $vc->PHOTO['TYPE'] = 'GIF';
             // if ($v4) convert to uri; See VCardConverter::convertBinaryToUri()
         }
