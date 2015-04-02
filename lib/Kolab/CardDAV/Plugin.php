@@ -153,7 +153,7 @@ class Plugin extends CardDAV\Plugin
     protected function convertVCard($data, $target)
     {
         $version = 'vcard3';
-        if (preg_match('/VERSION:(\d)/', $data, $m)) {
+        if (is_string($data) && preg_match('/VERSION:(\d)/', $data, $m)) {
             $version = 'vcard' . $m[1];
         }
 

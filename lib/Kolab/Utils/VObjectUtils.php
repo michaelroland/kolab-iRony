@@ -67,12 +67,17 @@ class VObjectUtils
             $dt->setTimeZone(new \DateTimeZone('UTC'));
         }
 
-        $vdt = $root->createProperty($name);
-        $vdt->setValue($dt);
+        $vdt = $root->createProperty($name, null, null, $dt->_dateonly ? 'DATE' : 'DATE-TIME');
+        $value = $dt;
 
         if ($dt->_dateonly) {
-            $vdt['VALUE'] = 'DATE';
+            // $vdt['VALUE'] = 'DATE';
+            // set date value as string as a temporary fix for
+            // https://github.com/fruux/sabre-vobject/issues/217
+            $value = $dt->format('Y-m-d');
         }
+
+        $vdt->setVAlue($value);
 
         return $vdt;
     }

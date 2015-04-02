@@ -15,11 +15,11 @@
 	],
 	"require": {
 		"php": ">=5.4.1",
-		"sabre/dav" : "~2.1.0"
+		"sabre/dav" : "2.1.*"
 	},
 	"require-dev": {
 		"pear/mail_mime": ">=1.8.9",
-		"pear/mail_mime-decode": ">=1.5.5",
+		"pear/mail_mime-decode": "~1.5.5",
 		"pear-pear.php.net/net_idna2": ">=0.1.1",
 		"pear-pear.php.net/net_ldap2": ">=2.0.12",
 		"kolab/Net_LDAP3": "dev-master"
