@@ -77,7 +77,7 @@ class VObjectUtils
             $value = $dt->format('Y-m-d');
         }
 
-        $vdt->setVAlue($value);
+        $vdt->setValue($value);
 
         return $vdt;
     }
