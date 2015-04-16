@@ -5,16 +5,16 @@
 	"version": "0.2.10",
 	"repositories": [
 		{
-			"type": "vcs",
-			"url": "git://git.kolab.org/git/pear/Net_LDAP3"
-		},
-		{
 			"type": "pear",
 			"url": "http://pear.php.net/"
 		},
 		{
 			"type": "vcs",
 			"url": "https://github.com/thomascube/sabre-vobject.git"
+		},
+		{
+			"type": "vcs",
+			"url": "https://git.kolab.org/diffusion/PNL/php-net_ldap.git"
 		}
 	],
 	"autoload": {
