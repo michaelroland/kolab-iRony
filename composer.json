@@ -14,7 +14,7 @@
 		},
 		{
 			"type": "vcs",
-			"url": "git://git.kolab.org/git/pear/Net_LDAP3"
+			"url": "https://git.kolab.org/diffusion/PNL/php-net_ldap.git"
 		}
 	],
 	"require": {
