@@ -28,66 +28,24 @@ namespace Kolab\Utils;
  */
 class HTTPResponse extends \Sabre\HTTP\Response
 {
-    protected $status;
-    protected $body = '';
-    protected $_headers = array();
-
-    /**
-     * Sends an HTTP status header to the client.
-     *
-     * @param int $code HTTP status code
-     * @return bool
-     */
-    public function sendStatus($code)
-    {
-        $this->status = $this->getStatusMessage($code, $this->defaultHttpVersion);
-        return parent::sendStatus($code);
-    }
-
-    /**
-     * Sets an HTTP header for the response
-     *
-     * @param string $name
-     * @param string $value
-     * @param bool $replace
-     * @return bool
-     */
-    public function setHeader($name, $value, $replace = true)
-    {
-        $this->_headers[$name] = $value;
-        return parent::setHeader($name, $value, $replace);
-    }
-
-    /**
-     * Sends the entire response body
-     *
-     * This method can accept either an open filestream, or a string.
-     *
-     * @param mixed $body
-     * @return void
-     */
-    public function sendBody($body)
-    {
-        if (is_resource($body)) {
-            fpassthru($body);
-            $this->body = '[binary data]';
-        }
-        else {
-            echo $body;
-            $this->body .= $body;
-        }
-    }
-
     /**
      * Dump the response data for logging
      */
     public function dump()
     {
         $result_headers = '';
-        foreach ($this->_headers as $hdr => $value) {
-            $result_headers .= "\n$hdr: " . $value;
+        foreach ($this->headers as $hdr => $value) {
+            $result_headers .= "\n$value[0]: " . $this->getHeader($hdr);
         }
 
-        return $this->status . $result_headers . "\n\n" . $this->body;
+        $body = $this->body;
+
+        // get response body as string for text/* data
+        if (is_resource($this->body) && strpos($this->getHeader('content-type'), 'text/') === 0) {
+            @fseek($this->body, 0);
+            $body = stream_get_contents($this->body);
+        }
+
+        return $this->status . " " . $this->statusText . $result_headers . "\n\n" . $body;
     }
 }
