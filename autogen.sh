@@ -62,6 +62,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+mv composer-dist.json composer.json
+
 ./composer.phar install --no-dev
 
 if [ $? -ne 0 ]; then
