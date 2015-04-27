@@ -54,7 +54,7 @@ class SchedulePlugin extends CalDAV\Schedule\Plugin
         $email = preg_replace('!^mailto:!i', '', $email);
 
         // pass-through the pre-generatd free/busy feed from Kolab's free/busy service
-        if ($fburl = \kolab_storage::get_freebusy_url($email)) {
+        if ($fburl = \kolab_storage::get_freebusy_url($email, $start, $end)) {
             try {
                 $rcube = \rcube::get_instance();
                 $client = new HTTP\Client();
@@ -74,6 +74,7 @@ class SchedulePlugin extends CalDAV\Schedule\Plugin
                 // success!
                 if ($response->getStatus() == 200) {
                     $vcalendar = VObject\Reader::read($response->getBodyAsString(), VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
+                    $vcalendar->METHOD = 'REPLY';
                     return array(
                         'calendar-data' => $vcalendar,
                         'request-status' => '2.0;Success',
