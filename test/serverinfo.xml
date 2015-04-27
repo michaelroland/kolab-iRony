@@ -83,7 +83,7 @@
 		<!-- <feature>remove-duplicate-alarms</feature> -->   	<!-- Server removes any duplicate alarms on PUT -->
 		<!-- <feature>query-extended</feature> -->				<!-- calendar-query-extended extension -->
 		<!-- <feature>shared-calendars</feature> -->				<!-- Shared calendars extension -->
-		<!--><feature>schedule-inbox</feature> -->				<!-- Scheduling Extension -->
+		<feature>schedule-inbox</feature>				<!-- Scheduling Extension -->
 		<!-- <feature>schedule-changes</feature> -->				<!-- schedule-changes property extension -->
 		<!-- <feature>split-calendars</feature> -->				<!-- Calendars are split by component type -->
 		<!-- <feature>supported-component-sets</feature> -->		<!-- CALDAV:supported-calendar-component-sets on calendar homes -->
@@ -448,7 +448,7 @@
 			</substitution>
 			<substitution>
 				<key>$principaluri%d:</key>
-				<value>$principalcollection:dav.user%02d%%40example.org/</value>
+				<value>$principalcollection:dav.user%02d@example.org/</value>
 			</substitution>
 			<substitution>
 				<key>$principal%dnoslash:</key>

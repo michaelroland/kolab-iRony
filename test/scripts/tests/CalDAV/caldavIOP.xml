@@ -73,13 +73,20 @@
 			<description>Create new single-instance meeting titled "Meeting 1.4" with an alarm set to trigger 15 minutes prior to the schedule time of the meeting.</description>
 			<request end-delete='yes'>
 				<method>PUT</method>
-				<ruri>$calendarpath1:/1-1_4.ics</ruri>
+				<ruri>$calendarpath1:/1-1_4-new.ics</ruri>
 				<data>
 					<content-type>text/calendar; charset=utf-8</content-type>
 					<filepath>Resource/CalDAV/caldaviop/1/1_4.txt</filepath>
 				</data>
 				<verify>
 					<callback>statusCode</callback>
+				</verify>
+				<verify>
+					<callback>header</callback>
+					<arg>
+						<name>Location</name>
+						<value>$calendarpath1:/1-1_4.ics</value>
+					</arg>
 				</verify>
 			</request>
 		</test>

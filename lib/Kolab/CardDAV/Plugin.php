@@ -50,28 +50,26 @@ class Plugin extends CardDAV\Plugin
     {
         parent::initialize($server);
 
-        $server->subscribeEvent('beforeMethod', array($this, 'beforeMethod'));
-        $server->subscribeEvent('afterCreateFile', array($this, 'afterWriteContent'));
-        $server->subscribeEvent('afterWriteContent', array($this, 'afterWriteContent'));
+        $server->on('beforeMethod', array($this, 'beforeMethod'));
+        $server->on('afterCreateFile', array($this, 'afterWriteContent'));
+        $server->on('afterWriteContent', array($this, 'afterWriteContent'));
     }
 
     /**
      * Adds all CardDAV-specific properties
      *
-     * @param string $path
+     * @param DAV\PropFind $propFind
      * @param DAV\INode $node
-     * @param array $requestedProperties
-     * @param array $returnedProperties
      * @return void
      */
-    public function beforeGetProperties($path, DAV\INode $node, array &$requestedProperties, array &$returnedProperties)
+    public function propFindEarly(DAV\PropFind $propFind, DAV\INode $node)
     {
         // publish global ldap address book for this principal
         if ($node instanceof DAVACL\IPrincipal && empty($this->directories) && \rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
             $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
         }
 
-        parent::beforeGetProperties($path, $node, $requestedProperties, $returnedProperties);
+        parent::propFindEarly($propFind, $node);
     }
 
     /**
@@ -125,7 +123,6 @@ class Plugin extends CardDAV\Plugin
         $data = DAV\StringUtil::ensureUTF8($data);
 
         try {
-            VObject\Property::$classMap['REV'] = 'Sabre\\VObject\\Property\\DateTime';
             $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
 
             if ($vobj->name == 'VCARD')
@@ -142,6 +139,30 @@ class Plugin extends CardDAV\Plugin
         if (!isset($vobj->UID)) {
             throw new DAV\Exception\BadRequest('Every vcard must have a UID.');
         }
+    }
+
+    /**
+     * Converts a vcard blob to a different version, or jcard.
+     *
+     * (optimized version that skips parsing and re-serialization if possible)
+     *
+     * @param string $data
+     * @param string $target
+     * @return string
+     */
+    protected function convertVCard($data, $target)
+    {
+        $version = 'vcard3';
+        if (is_string($data) && preg_match('/VERSION:(\d)/', $data, $m)) {
+            $version = 'vcard' . $m[1];
+        }
+
+        // no conversion needed
+        if ($target == $version) {
+            return $data;
+        }
+
+        return parent::convertVCard($data, $target);
     }
 
     /**

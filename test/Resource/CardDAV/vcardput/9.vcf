@@ -2,7 +2,7 @@ BEGIN:VCARD
 VERSION:3.0
 N:バイト;ダブル;;;
 FN:ダブル バイト
-EMAIL;TYPE=INTERNET;TYPE=WORK:doublebytes@example.com
+EMAIL;TYPE=INTERNET,WORK:doublebytes@example.com
 TEL;TYPE=WORK:777-777-7777
 TEL;TYPE=CELL:8888888888
 ADR;TYPE=WORK:;;1-23-4 Irohacho #2;Tokyo;Japan;33-3333;Japan

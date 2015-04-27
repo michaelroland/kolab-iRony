@@ -68,6 +68,8 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
                 $cache->set($cache_key, array(
                     'user'  => $auth['user'],
                     'host'  => $auth['host'],
+                    'dn'    => $_SESSION['kolab_dn'],
+                    'vars'  => $_SESSION['kolab_auth_vars'],
                 ));
             }
 
@@ -78,6 +80,9 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
         }
         else {
             $auth['pass'] = $password;
+            // set some session vars from kolab_auth
+            $_SESSION['kolab_dn'] = $auth['dn'];
+            $_SESSION['kolab_auth_vars'] = $auth['vars'];
         }
 
         // authenticate user against the IMAP server

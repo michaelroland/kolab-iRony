@@ -5,7 +5,7 @@
  *
  * This is the public API to provide *DAV-based access to the Kolab Groupware backend
  *
- * @version 0.3-dev
+ * @version 0.4-dev
  * @author Thomas Bruederli <bruederli@kolabsys.com>
  *
  * Copyright (C) 2013-2014, Kolab Systems AG <contact@kolabsys.com>
@@ -26,7 +26,7 @@
 
 // define some environment variables used throughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
-define('KOLAB_DAV_VERSION', '0.3.0');
+define('KOLAB_DAV_VERSION', '0.4-dev');
 define('KOLAB_DAV_START', microtime(true));
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');
@@ -154,9 +154,9 @@ $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
 $server->addPlugin(new \Sabre\DAVACL\Plugin());
 
 if ($services['CALDAV']) {
-    $caldav_plugin = new \Kolab\CalDAV\Plugin();
-    $caldav_plugin->setIMipHandler(new \Kolab\CalDAV\IMip());
-    $server->addPlugin($caldav_plugin);
+    $server->addPlugin(new \Kolab\CalDAV\Plugin());
+    $server->addPlugin(new \Kolab\CalDAV\SchedulePlugin());
+    $server->addPlugin(new \Kolab\CalDAV\IMipPlugin(''));
 }
 
 if ($services['CARDDAV']) {
@@ -178,7 +178,7 @@ if (getenv('DAVBROWSER')) {
 }
 
 // log exceptions in iRony error log
-$server->subscribeEvent('exception', function($e){
+$server->on('exception', function($e){
     if (!($e instanceof \Sabre\DAV\Exception) || $e->getHTTPCode() == 500) {
         rcube::raise_error(array(
             'code' => 500,
@@ -194,4 +194,4 @@ $server->subscribeEvent('exception', function($e){
 $server->exec();
 
 // trigger log
-$server->broadcastEvent('exit', array());
+$server->emit('exit', array());

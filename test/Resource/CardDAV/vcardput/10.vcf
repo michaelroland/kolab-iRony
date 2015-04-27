@@ -5,7 +5,7 @@ FN:All Custom Fields Here
 NICKNAME:custome
 ORG:Major League Co.;Macosx server group
 TITLE:QA Engineer
-EMAIL;type=INTERNET;type=WORK;type=pref:custom@example.com
+EMAIL;type=INTERNET,WORK;type=pref:custom@example.com
 TEL;type=WORK;type=pref:777-777-7777
 TEL;type=CELL:8888888888
 item1.ADR;type=WORK;type=pref:;;1 Goroku St.;Mountain Top;CA;99999;USA

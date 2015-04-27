@@ -396,17 +396,16 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     }
 
     /**
-     * Updates properties on this node,
+     * Updates properties on this node.
      *
-     * @param array $mutations
-     * @return bool|array
+     * @param PropPatch $propPatch
+     * @return void
      */
-    function updateProperties($mutations)
+    public function propPatch(DAV\PropPatch $propPatch)
     {
-        console(__METHOD__, $mutations);
-        return false;
+        console(__METHOD__, $propPatch);
+        // NOP
     }
-
     /**
      * Post-process the given contact record from rcube_ldap
      */

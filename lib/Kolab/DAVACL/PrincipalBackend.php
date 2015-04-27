@@ -24,6 +24,9 @@
 namespace Kolab\DAVACL;
 
 use \rcube;
+use \rcube_utils;
+use \libcalendaring;
+use \kolab_storage;
 use Sabre\DAV\Exception;
 use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
@@ -31,7 +34,7 @@ use Kolab\DAV\Auth\HTTPBasic;
 /**
  * Kolab Principal Backend
  */
-class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterface
+class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterface
 {
     /**
      * Sets up the backend.
@@ -50,11 +53,15 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
 
         if (HTTPBasic::$current_user) {
             $user_email = rcube::get_instance()->get_user_email();
+            $emails = libcalendaring::get_instance()->get_user_emails();
+
             return array(
                 'uri' => 'principals/' . HTTPBasic::$current_user,
                 '{DAV:}displayname' => HTTPBasic::$current_user,
                 '{http://sabredav.org/ns}email-address' => $user_email,
-                '{http://calendarserver.org/ns/}email-address-set' => $user_email,
+                '{DAV:}alternate-URI-set' => array_map(function($email) {
+                        return 'mailto:' . $email;
+                    }, $emails),
             );
         }
 
@@ -113,14 +120,19 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         if ($prefix == 'principals' && $name == HTTPBasic::$current_user) {
             return $this->getCurrentUser();
         }
-        else if ($prefix == 'principals' && \rcube_utils::check_email($name, false)) {
-            // TODO: do a user lookup in LDAP
+        else if ($prefix == 'principals' && rcube_utils::check_email($name, false)) {
             list($localname,$domain) = explode('@', $name);
+            $displayname = ucfirst(str_replace('.', ' ', $localname));
+
+            // Do a user lookup in LDAP
+            foreach (kolab_storage::search_users($name, 1, array('email'), 1) as $user) {
+                $displayname = $user['displayname'];
+            }
+
             return array(
                 'uri' => $path,
-                '{DAV:}displayname' => $localname,
+                '{DAV:}displayname' => $displayname,
                 '{http://sabredav.org/ns}email-address' => $name,
-                '{http://calendarserver.org/ns/}email-address-set' => $name,
             );
         }
 
@@ -138,7 +150,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         // TODO: for now the group principal has only one member, the user itself
         list($prefix, $name) = URLUtil::splitPath($principal);
 
-        $principal = $this->getPrincipalByPath($prefix);
+        $principal = $this->getPrincipalByPath($principal);
         if (!$principal) throw new Exception('Principal not found');
 
         return array(
@@ -190,7 +202,7 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
         throw new Exception('Setting members of the group is not supported yet');
     }
 
-    function updatePrincipal($path, $mutations)
+    function updatePrincipal($path, \Sabre\DAV\PropPatch $propPatch)
     {
         return 0;
     }
@@ -217,16 +229,17 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
      *
      * @param string $prefixPath
      * @param array $searchProperties
+     * @param string $test
      * @return array
      */
-    function searchPrincipals($prefixPath, array $searchProperties)
+    function searchPrincipals($prefixPath, array $searchProperties, $test = 'allof')
     {
         console(__METHOD__, $prefixPath, $searchProperties);
 
-        $email = null;
+        $email = null; $name = null;
         $results = array();
         $current_user = $this->getCurrentUser();
-        foreach($searchProperties as $property => $value) {
+        foreach ($searchProperties as $property => $value) {
             // check search property against the current user
             if ($current_user[$property] == $value) {
                 $results[] = $current_user['uri'];
@@ -238,15 +251,20 @@ class PrincipalBackend implements \Sabre\DAVACL\PrincipalBackend\BackendInterfac
                     break;
 
                 case '{DAV:}displayname':
+                    $name = $value;
+                    break;
+
                 default :
                     // Unsupported property
                     return array();
             }
         }
 
-        // we only support search by email
-        if (!empty($email)) {
-            // TODO: search via LDAP
+        // search users via LDAP
+        if (empty($results) && (!empty($email) || !empty($name))) {
+            foreach (kolab_storage::search_users($email ?: $name, 2, array('email'), 10) as $user) {
+                $results[] = 'principals/' . $user['email'];
+            }
         }
 
         return array_unique($results);

@@ -61,10 +61,24 @@ class VObjectUtils
      * @param string Property name
      * @param object DateTime
      */
-    public static function datetime_prop($name, $dt, $utc = false)
+    public static function datetime_prop($root, $name, $dt, $utc = false)
     {
-        $vdt = new Property\DateTime($name);
-        $vdt->setDateTime($dt, $dt->_dateonly ? Property\DateTime::DATE : ($utc ? Property\DateTime::UTC : Property\DateTime::LOCALTZ));
+        if ($utc) {
+            $dt->setTimeZone(new \DateTimeZone('UTC'));
+        }
+
+        $vdt = $root->createProperty($name, null, null, $dt->_dateonly ? 'DATE' : 'DATE-TIME');
+        $value = $dt;
+
+        if ($dt->_dateonly) {
+            // $vdt['VALUE'] = 'DATE';
+            // set date value as string as a temporary fix for
+            // https://github.com/fruux/sabre-vobject/issues/217
+            $value = $dt->format('Y-m-d');
+        }
+
+        $vdt->setValue($value);
+
         return $vdt;
     }
 
