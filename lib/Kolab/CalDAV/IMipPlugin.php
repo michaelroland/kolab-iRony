@@ -130,6 +130,8 @@ class IMipPlugin extends CalDAV\Schedule\IMipPlugin
                 'message' => "Failed to send iTIP message to " . $mailto),
                 true, false);
         }
+
+        console(__METHOD__, "DONE", $iTipMessage->scheduleStatus);
     }
 
 }

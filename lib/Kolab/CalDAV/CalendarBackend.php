@@ -722,6 +722,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         console(__METHOD__, $principalUri);
 
         $results = array();
+        $threshold = new \DateTime('now - 7 days');
 
         // we can only access the current user's calendars (if enabled)
         if (!$this->is_current_pricipal($principalUri) || !rcube::get_instance()->config->get('kolabdav_caldav_inbox', false)) {
@@ -738,6 +739,12 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                         continue;
                     }
 
+                    // filter past event invitations
+                    if (is_a($event['end'], '\\DateTime') && $event['end'] < $threshold && empty($event['recurrence'])) {
+                        console(sprintf('Skip iTip message for past event: %s // %s // %s', $event['uid'], $event['title'], $event['end']->format('c')));
+                        continue;
+                    }
+
                     $event['_msguid'] = $msguid;
                     $results[] = array(
                         'uri' => VObjectUtils::uid2uri($msguid . '-' . $mime_id, '.ics'),
@@ -745,8 +752,6 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                         'lastmodified' => $event['changed'] ? $event['changed']->format('U') : null,
                         'etag' => self::_get_etag($event),
                     );
-
-                    break;
                 }
             }
         }
@@ -772,7 +777,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
             return;
         }
 
-        // TODO: get the referenced iTip message from email INBOX and
+        // get the referenced iTip message from email INBOX and
         // copy it to the default calendar. This will also remove the message
         // from the email inbox as the message is considered 'processed'.
         $uid = VObjectUtils::uri2uid($objectUri, '.ics');
@@ -785,40 +790,96 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                     return;
                 }
 
+                console('Copy iTip Schedule object', $object);
+
                 // get default calendar and search for an existing copy
-                $calendarId = reset(array_keys($this->_read_calendars()));
+                $calendars = $this->_read_calendars();
+                $calendarId = reset(array_keys($calendars));
+
+                // select private/confidential calendar folder
+                if (!empty($object['sensitivity'])) {
+                    foreach ($calendars as $calid => $calprop) {
+                        if (($folder = $this->folders[$calid]) && $object['sensitivity'] === $folder->subtype) {
+                            $calendarId = $calid;
+                        }
+                    }
+                }
+
                 $storage = $this->get_storage_folder($calendarId);
                 $existing = $storage->get_object($object['uid']);
+                $update = true;
 
                 // copy meta data (starting with _) from old object
                 if (!empty($existing)) {
+                    // ignore update if existing is newer
+                    if ($existing['sequence'] > $object['sequence']) {
+                        $update = false;
+                    }
+
                     foreach ((array)$existing as $key => $val) {
                         if (!isset($object[$key]) && $key[0] == '_')
                             $object[$key] = $val;
                     }
                 }
 
-                // TODO: if iTip REPLY or CANCEL, only copy necessary properties
+                // act according to the scheduling method
+                switch ($object['_method']) {
+                    case 'REQUEST':
+                        // store the new version
+                        break;
 
-                // map attachments attribute
-                $object['_attachments'] = $object['attachments'];
-                unset($object['attachments']);
+                    case 'REPLY':
+                        if (!empty($existing)) {
+                            // TODO: only update attendee status(es) on the existing event
+                            // as in pykolab/wallace/module_invitationpolicy/process_itip_reply()
+                            // FIXME: replies can refer to single recurrence instances
+                            $attendee = null;
+                            $object = $existing;
+                            $update = false;
+                        }
+                        else {
+                            $update = false;
+                        }
+                        break;
 
-                $success = $storage->save($object, $object['_type'], $existing['uid']);
-                if (!$success) {
-                    rcube::raise_error(array(
-                        'code' => 600, 'type' => 'php',
-                        'file' => __FILE__, 'line' => __LINE__,
-                        'message' => "Error saving $object[_type] object to Kolab server"),
-                        true, false);
+                    case 'CANCEL':
+                        // set status to cancelled
+                        if (!empty($existing)) {
+                            $existing['cancelled'] = true;
+                            $existing['status'] = 'cancelled';
+                            $object = $existing;
+                        }
+                        else {
+                            $update = false;
+                        }
+                        break;
 
-                    throw new DAV\Exception('Error saving calendar object to backend');
+                    default:
+                        console('iTip method ' . $object['_method'] . ' not supported; ignoring');
+                        $update = false;
                 }
 
-                // remove iTip message from email inbox
-                // TODO: move to Trash instead ?
+                if ($update) {
+                    // map attachments attribute
+                    $object['_attachments'] = $object['attachments'];
+                    unset($object['attachments']);
+
+                    $success = $storage->save($object, $object['_type'], $existing['uid']);
+                    if (!$success) {
+                        rcube::raise_error(array(
+                            'code' => 600, 'type' => 'php',
+                            'file' => __FILE__, 'line' => __LINE__,
+                            'message' => "Error saving $object[_type] object to Kolab server"),
+                            true, false);
+
+                        throw new DAV\Exception('Error saving calendar object to backend');
+                    }
+                }
+
+                // remove iTip message from email inbox or move to Trash instead ?
                 $imap = $rcube->get_storage();
-                $imap->move_message($msguid, 'Trash', 'INBOX');
+                $done = $imap->move_message($msguid, 'Trash', 'INBOX');
+                console("MOVE $msguid to Trash", $done);
                 //console("DELETE $msguid", $imap->delete_message($msguid, 'INBOX'));
             }
         }
