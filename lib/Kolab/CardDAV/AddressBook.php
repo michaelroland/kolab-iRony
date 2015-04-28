@@ -157,4 +157,22 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
         throw new DAV\Exception\MethodNotAllowed('Changing ACL is not yet supported');
     }
 
+    /**
+     * This method returns the ACL's for card nodes in this address book.
+     * The result of this method automatically gets passed to the
+     * card nodes in this address book.
+     *
+     * @return array
+     */
+    function getChildACL()
+    {
+        static $myacl;
+
+        if (!$myacl) {
+            $myacl = $this->getACL();
+        }
+
+        return $myacl;
+    }
+
 }

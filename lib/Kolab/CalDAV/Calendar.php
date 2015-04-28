@@ -114,4 +114,61 @@ class Calendar extends \Sabre\CalDAV\Calendar
         }
     }
 
+    /**
+     * This method returns the ACL's for calendar objects in this calendar.
+     * The result of this method automatically gets passed to the
+     * calendar-object nodes in the calendar.
+     *
+     * @return array
+     */
+    function getChildACL()
+    {
+        static $myacl;
+
+        $acl = [
+            [
+                'privilege' => '{DAV:}read',
+                'principal' => $this->calendarInfo['principaluri'],
+                'protected' => true,
+            ],
+            [
+                'privilege' => '{DAV:}read',
+                'principal' => $this->calendarInfo['principaluri'] . '/calendar-proxy-write',
+                'protected' => true,
+            ],
+            [
+                'privilege' => '{DAV:}read',
+                'principal' => $this->calendarInfo['principaluri'] . '/calendar-proxy-read',
+                'protected' => true,
+            ],
+        ];
+
+        if (empty($this->calendarInfo['{http://sabredav.org/ns}read-only'])) {
+            // check write privileges of address book node
+            if (!$myacl) {
+                $myacl = $this->getACL();
+            }
+
+            $write = false;
+            array_walk($myacl, function($acl, $i) use (&$write) {
+                if ($acl['privilege'] == '{DAV:}write') {
+                    $write = true;
+                }
+            });
+
+            if ($write) {
+                $acl[] = [
+                    'privilege' => '{DAV:}write',
+                    'principal' => $this->calendarInfo['principaluri'],
+                    'protected' => true,
+                ];
+                $acl[] = [
+                    'privilege' => '{DAV:}write',
+                    'principal' => $this->calendarInfo['principaluri'] . '/calendar-proxy-write',
+                    'protected' => true,
+                ];
+            }
+        }
+        return $acl;
+    }
 }
