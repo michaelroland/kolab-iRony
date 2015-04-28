@@ -33,5 +33,7 @@ $CALDAVTESTER/testcaldav.py --print-details-onfail -s serverinfo.xml \
     CalDAV/caldavIOP.xml \
     CalDAV/ctag.xml \
     CalDAV/attachments.xml \
-    CalDAV/scheduleprops.xml
+    CalDAV/scheduleprops.xml \
+    CalDAV/schedulepost.xml \
+    CalDAV/implicitimip.xml
 

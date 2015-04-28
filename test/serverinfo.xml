@@ -69,7 +69,7 @@
 		<!-- <feature>default-alarms</feature> -->				<!-- default alarms extension -->
 		<!-- <feature>EMAIL parameter</feature> -->				<!-- Server normalizes cuaddress and adds EMAIL parameter -->
 		<!-- <feature>extended-freebusy</feature> -->	      	<!-- Extended freebusy response -->
-		<!-- <feature>implicit-scheduling</feature> -->			<!-- CalDAV scheduling - implicit -->
+		<feature>implicit-scheduling</feature>			<!-- CalDAV scheduling - implicit -->
 		<!-- <feature>location-resource-tracking</feature> -->   <!-- Server tracks who makes unscheduled changes to locations and resources -->
 		<!-- <feature>managed-attachments</feature> -->			<!-- CalDAV Managed Attachments -->
 		<!-- <feature>maskuid</feature> -->						<!-- maskuid extension -->
@@ -405,7 +405,7 @@
 		</substitution>
 
 		<!--  User accounts -->
-		<repeat count="2">
+		<repeat count="3">
 			<!-- user id -->
 			<substitution>
 				<key>$userid%d:</key>

@@ -131,7 +131,7 @@ class IMipPlugin extends CalDAV\Schedule\IMipPlugin
                 true, false);
         }
 
-        console(__METHOD__, "DONE", $iTipMessage->scheduleStatus);
+        console(__METHOD__, "DONE: " . $iTipMessage->scheduleStatus);
     }
 
 }
