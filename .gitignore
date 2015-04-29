@@ -1,6 +1,7 @@
 config/*.inc.php
 logs/
 vendor/
+lib/FileAPI
 lib/plugins
 lib/Roundcube
 composer.phar
