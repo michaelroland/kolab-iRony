@@ -79,9 +79,9 @@ fi
 mkdir -p ../${package}-${version}/
 cp -a * ../${package}-${version}/.
 find ../${package}-${version}/ -type d -name ".git" -exec rm -rf {} \; 2>/dev/null
+find ../${package}-${version}/ -mindepth 1 -maxdepth 1 -type f -name "composer.phar" -delete 2>/dev/null
 
 pwd=$(pwd)
 pushd ..
-tar czvf ${pwd}/${package}-${version}+dep.tar.gz ${package}-${version}/
+tar czvf ${pwd}/${package}-${version}.tar.gz ${package}-${version}/
 popd
-git archive --prefix=${package}-${version}/ HEAD | gzip -c > ${package}-${version}.tar.gz
