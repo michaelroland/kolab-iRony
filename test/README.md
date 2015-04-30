@@ -1,5 +1,5 @@
-Unit Tests for iRony CalDAV/CardDAV/WebDAV Server
-=================================================
+Functional Tests for iRony CalDAV/CardDAV/WebDAV Server
+=======================================================
 
 The tests are based on the [CalDAVTester][1] suite and require the Python-based
 suite to be installed and set up before.
@@ -38,9 +38,9 @@ as well as the values of the following substitution keys:
 * $lastname%d:
 * $pswd%d:
 
-Make sure that two users matching the patterns of $userid%d and subsequent do
+Make sure that three users matching the patterns of $userid%d and subsequent do
 exist on the Kolab server that is to be tested with. Default user accounts
-are set to dav.user01@example.org and dav.user02@example.org with password "12345".
+are set to dav.user01@example.org, dav.user02@example.org, etc. with password "12345".
 
 
 Running the Tests
