@@ -24,6 +24,7 @@
 namespace Kolab\CardDAV;
 
 use \rcube;
+use \rcube_mime;
 use \rcube_charset;
 use \kolab_storage;
 use Sabre\DAV;
@@ -603,7 +604,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
      */
     private function is_vcard4()
     {
-        return $this->useragent == 'vcard4';
+        return Plugin::$vcard_version == 'vcard4' || $this->useragent == 'vcard4';
     }
 
 
@@ -670,7 +671,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $v4_prefix = $v4 ? '' : 'X-';
 
         $vc = new VObject\Component\VCard();
-        $vc->VERSION = $v4 ? '4.0' : '3.0';
+        $vc->VERSION = '3.0';  // always set to 3.0 and let Sabre/DAV convert to 4.0 if necessary
         $vc->PRODID = '-//Kolab//iRony DAV Server ' . KOLAB_DAV_VERSION . '//Sabre//Sabre VObject ' . VObject\Version::VERSION . '//EN';
 
         $vc->add('UID', $contact['uid']);
@@ -763,8 +764,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $improtocolmap = array_flip($this->improtocols);
         foreach ((array)$contact['im'] as $im) {
             list($prot, $val) = explode(':', $im, 2);
-            if ($val) $vc->add('x-' . ($improtocolmap[$prot] ?: $prot), $val);
-            else      $vc->add('IMPP', $im);
+            if ($val && !$v4) $vc->add('x-' . ($improtocolmap[$prot] ?: $prot), $val);
+            else              $vc->add('IMPP', $im);
         }
 
         foreach ((array)$contact['address'] as $adr) {
@@ -821,8 +822,9 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
             $vc->PHOTO['ENCODING'] = 'B';
-            // $vc->PHOTO['TYPE'] = 'GIF';
-            // if ($v4) convert to uri; See VCardConverter::convertBinaryToUri()
+            if ($v4) {
+                $vc->PHOTO['TYPE'] = strtoupper(substr(rcube_mime::image_content_type($contact['photo']), 6));
+            }
         }
 
         // add custom properties
@@ -838,11 +840,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         if (!empty($contact['changed']) && is_a($contact['changed'], 'DateTime')) {
             $vc->REV = $contact['changed']->format('Ymd\\THis\\Z');
         }
-
-        // convert to VCard4.0
-        // if ($v4) {
-        //    $vc->convert(VObject\Document::VCARD40);
-        //}
 
         return $vc->serialize();
     }
@@ -961,6 +958,10 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 case 'X-ASSISTANT':
                 case 'X-CHILDREN':
                 case 'X-SPOUSE':
+                case 'X-MS-MANAGER':
+                case 'X-MS-ASSISTANT':
+                case 'X-MS-CHILDREN':
+                case 'X-MS-SPOUSE':
                     $contact[strtolower(substr($prop->name, 2))] = explode(',', $value);
                     break;
 
@@ -1014,8 +1015,13 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
                 case 'KIND':
                 case 'X-ADDRESSBOOKSERVER-KIND':
-                    if (strtolower($value) == 'group') {
+                    $value_ = strtolower($value);
+                    if ($value_ == 'group') {
                         $contact['_type'] = 'distribution-list';
+                    }
+                    else if ($value_ == 'org') {
+                        // store vcard 4 KIND as custom property
+                        $contact['x-custom'][] = array('X-ABSHOWAS', 'COMPANY');
                     }
                     break;
 

@@ -40,6 +40,9 @@ class Plugin extends CardDAV\Plugin
     // allow the backend to force a redirect Location
     public static $redirect_basename;
 
+    // vcard version requested by the connecting client
+    public static $vcard_version = 'vcard3';
+
     /**
      * Initializes the plugin
      *
@@ -50,7 +53,7 @@ class Plugin extends CardDAV\Plugin
     {
         parent::initialize($server);
 
-        $server->on('beforeMethod', array($this, 'beforeMethod'));
+        $server->on('beforeMethod', array($this, 'beforeMethod'), 0);
         $server->on('afterCreateFile', array($this, 'afterWriteContent'));
         $server->on('afterWriteContent', array($this, 'afterWriteContent'));
     }
@@ -75,17 +78,23 @@ class Plugin extends CardDAV\Plugin
     /**
      * Handler for beforeMethod events
      */
-    public function beforeMethod($method, $uri)
+    public function beforeMethod($request, $response)
     {
-        if ($method == 'PUT' && $this->server->httpRequest->getHeader('If-None-Match') == '*') {
+        $method = $request->getMethod();
+
+        if ($method == 'PUT' && $request->getHeader('If-None-Match') == '*') {
             // In-None-Match: * is only valid with PUT requests creating a new resource.
             // SOGo Conenctor for Thunderbird also sends it with update requests which then fail
             // in the Server::checkPreconditions().
             // See https://issues.kolab.org/show_bug.cgi?id=2589 and http://www.sogo.nu/bugs/view.php?id=1624
             // This is a work-around for the buggy SOGo connector and should be removed once fixed.
-            if (strpos($this->server->httpRequest->getHeader('User-Agent'), 'Thunderbird/') > 0) {
+            if (strpos($request->getHeader('User-Agent'), 'Thunderbird/') > 0) {
                 unset($_SERVER['HTTP_IF_NONE_MATCH']);
             }
+        }
+        else if ($method == 'GET' && ($accept = $request->getHeader('Accept'))) {
+            // determine requested vcard version from Accept: header
+            self::$vcard_version = parent::negotiateVCard($accept);
         }
     }
 
@@ -139,6 +148,15 @@ class Plugin extends CardDAV\Plugin
         if (!isset($vobj->UID)) {
             throw new DAV\Exception\BadRequest('Every vcard must have a UID.');
         }
+    }
+
+    /**
+     * Wrapper for Plugin::negotiateVCard() to store the requested vcard version for the backend
+     */
+    protected function negotiateVCard($input, &$mimeType = null)
+    {
+        self::$vcard_version = parent::negotiateVCard($input, $mimeType);
+        return self::$vcard_version;
     }
 
     /**
