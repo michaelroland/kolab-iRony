@@ -50,8 +50,14 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
         parent::__construct($carddavBackend, $addressBookInfo);
 
         $this->id = $addressBookInfo['id'];
-        $this->storage = $carddavBackend->get_storage_folder($this->id);
-        $this->ready = $this->id == '__all__' || (is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder'));
+
+        if ($this->id == '__all__') {
+            $this->ready = true;
+        }
+        else {
+            $this->storage = $carddavBackend->get_storage_folder($this->id);
+            $this->ready = is_object($this->storage) && is_a($this->storage, 'kolab_storage_folder');
+        }
     }
 
 
