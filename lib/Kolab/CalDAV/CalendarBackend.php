@@ -579,7 +579,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
       if ($storage = $this->get_storage_folder($calendarId)) {
           foreach ($storage->select($query) as $event) {
               // TODO: cache the already fetched events in memory (really?)
-              $results[] = $event['uid'] . '.ics';
+              $results[] = VObjectUtils::uid2uri($event['uid'], '.ics');
           }
       }
 
