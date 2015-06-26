@@ -620,7 +620,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend
           foreach ($storage->select($query) as $event) {
               // post-filter events to suppress declined invitations
               if ($this->_event_filter_compare($event)) {
-                  $results[] = $event['uid'] . '.ics';
+                  $results[] = VObjectUtils::uid2uri($event['uid'], '.ics');
               }
           }
       }
