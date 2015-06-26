@@ -26,7 +26,7 @@
 
 // define some environment variables used throughout the app and libraries
 define('KOLAB_DAV_ROOT', realpath('../'));
-define('KOLAB_DAV_VERSION', '0.3.0');
+define('KOLAB_DAV_VERSION', '0.3.1');
 define('KOLAB_DAV_START', microtime(true));
 
 define('RCUBE_INSTALL_PATH', KOLAB_DAV_ROOT . '/');
