@@ -34,10 +34,6 @@ use Sabre\DAV;
  */
 class DAVBackend
 {
-    const IMAP_UID_KEY = '/shared/vendor/kolab/uniqueid';
-    const IMAP_UID_KEY_PRIVATE = '/private/vendor/kolab/uniqueid';
-    const IMAP_UID_KEY_CYRUS = '/shared/vendor/cmu/cyrus-imapd/uniqueid';
-
     public static $caldav_type_component_map = array('event' => 'VEVENT', 'task' => 'VTODO');
 
     /**
