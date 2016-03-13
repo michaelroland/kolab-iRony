@@ -46,8 +46,3 @@ $loader->setUseIncludePath(true);  // enable include_path to load PEAR classes f
 
 // load the Roundcube framework with its autoloader
 require_once KOLAB_DAV_ROOT . '/lib/Roundcube/bootstrap.php';
-
-// convenience function, you know it well :-)
-//function console()
-//{
-//}
