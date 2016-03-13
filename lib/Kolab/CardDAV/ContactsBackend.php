@@ -77,6 +77,19 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         'assistant' => 'assistant',
     );
 
+    private $phonetypes = array(
+        'main'    => 'voice',
+        'homefax' => 'home,fax',
+        'workfax' => 'work,fax',
+        'mobile'  => 'cell',
+        'other'   => 'textphone',
+    );
+
+    private $improtocols = array(
+        'jabber' => 'xmpp',
+    );
+
+
     /**
      * Read available contact folders from server
      */
@@ -111,7 +124,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         return $this->sources;
     }
 
-
     /**
      * Getter for a kolab_storage_folder representing the address book for the given ID
      *
@@ -133,7 +145,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return DAVBackend::get_storage_folder($id, 'contact');
         }
     }
-
 
     /**
      * Returns the list of addressbooks for a specific user.
@@ -541,7 +552,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         return false;
     }
 
-
     /**
      * Set User-Agent string of the connected client
      */
@@ -561,7 +571,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             }
         }
     }
-
 
     /**
      * Find an object and the containing folder by UID
@@ -610,26 +619,15 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
     /**********  Data conversion utilities  ***********/
 
-    private $phonetypes = array(
-        'main'    => 'voice',
-        'homefax' => 'home,fax',
-        'workfax' => 'work,fax',
-        'mobile'  => 'cell',
-        'other'   => 'textphone',
-    );
-    
-    private $improtocols = array(
-        'jabber' => 'xmpp',
-    );
-
-
     /**
      * Parse the given VCard string into a hash array kolab_format_contact can handle
      *
      * @param string VCard data block
+     * @param string Contact UID
+     *
      * @return array Hash array with contact properties or null on failure
      */
-    private function parse_vcard($cardData, $uid)
+    public function parse_vcard($cardData, $uid = null)
     {
         try {
             // use already parsed object
@@ -657,7 +655,6 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         return null;
     }
-
 
     /**
      * Build a valid VCard format block from the given contact record
@@ -1095,7 +1092,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             // translate custom properties with a matching prefix to labelled items
             foreach ((array)$contact['x-custom'] as $prop) {
                 $name = $prop[0];
-                if (strpos($name, $propname) === 0) {
+                if ($vc->{$name} && strpos($name, $propname) === 0) {
                     $label = strtolower(substr($name, strlen($propname)+1));
                     $this->_replace_with_labelled_prop($vc, $name, $propname, $label);
                 }
@@ -1166,5 +1163,4 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         return sprintf('"%s-%d"', substr(md5($contact['uid']), 0, 16), $contact['_msguid']);
     }
-
 }

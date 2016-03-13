@@ -10,6 +10,7 @@ class ContactsBackendTest extends PHPUnit_Framework_TestCase
 
 
     /**
+     * Test vCard PHOTO (T1082)
      */
     function test_T1082()
     {
