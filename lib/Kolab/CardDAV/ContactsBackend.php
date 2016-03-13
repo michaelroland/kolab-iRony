@@ -821,10 +821,8 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
 
         if (!empty($contact['photo'])) {
             $vc->PHOTO = $contact['photo'];
-            $vc->PHOTO['ENCODING'] = 'B';
-            if ($v4) {
-                $vc->PHOTO['TYPE'] = strtoupper(substr(rcube_mime::image_content_type($contact['photo']), 6));
-            }
+            $vc->PHOTO['ENCODING'] = 'b';
+            $vc->PHOTO['TYPE'] = strtoupper(substr(rcube_mime::image_content_type($contact['photo']), 6));
         }
 
         // add custom properties

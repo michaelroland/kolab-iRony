@@ -1,0 +1,9 @@
+<phpunit backupGlobals="false"
+    bootstrap="bootstrap.php"
+    colors="true">
+    <testsuites>
+        <testsuite name="All Tests">
+            <file>Unit/CardDAV/ContactsBackend.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>
