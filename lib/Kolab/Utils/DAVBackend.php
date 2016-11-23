@@ -184,7 +184,8 @@ class DAVBackend
                     'file' => __FILE__, 'line' => __LINE__,
                     'message' => "Error updating properties for folder $folder->name:" . kolab_storage::$last_error),
                     true, false);
-                return false;
+
+                throw new DAV\Exception('Internal Server Error');
             }
         }
 
@@ -248,7 +249,8 @@ class DAVBackend
                 'file' => __FILE__, 'line' => __LINE__,
                 'message' => "Error creating a new $type folder '$props[name]':" . kolab_storage::$last_error),
                 true, false);
-            return false;
+
+            throw new DAV\Exception('Internal Server Error');
         }
 
         // save UID in folder annotations
