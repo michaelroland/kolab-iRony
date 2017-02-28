@@ -213,7 +213,7 @@ class Collection extends Node implements \Sabre\DAV\ICollection
             throw new \Sabre\DAV\Exception\Forbidden('Hidden files are not accepted');
         }
 
-        $folder = $this->path . '/' . $name;
+        $folder = (strlen($this->path) ? $this->path . '/' : '') . $name;
 
         try {
             $this->backend->folder_create($folder);
