@@ -91,7 +91,7 @@ class Collection extends Node implements \Sabre\DAV\ICollection
             catch (Exception $e) {
             }
 
-            foreach ($files as $filename => $file) {
+            foreach ((array) $files as $filename => $file) {
                 $path = Collection::ROOT_DIRECTORY . '/' . $filename;
                 // remove path prefix
                 $filename = substr($filename, $path_len + 1);
