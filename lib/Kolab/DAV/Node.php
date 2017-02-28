@@ -206,7 +206,7 @@ class Node implements \Sabre\DAV\INode
         if ($error == \file_storage::ERROR_UNAVAILABLE) {
             throw new \Sabre\DAV\Exception\ServiceUnavailable($msg);
         }
-        else if ($error == \kolab_storage::ERROR_FORBIDDEN) {
+        else if ($error == \file_storage::ERROR_FORBIDDEN) {
             throw new \Sabre\DAV\Exception\Forbidden($msg);
         }
 
