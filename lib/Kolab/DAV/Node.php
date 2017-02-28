@@ -170,8 +170,6 @@ class Node implements \Sabre\DAV\INode
 
         // $data can be a resource or a string
         if (is_resource($data)) {
-            rewind($data);
-
             // $data can be php://input or php://temp
             // php://input is not seekable, we need to "convert"
             // it to seekable resource, fstat/rewind later will work
@@ -181,6 +179,9 @@ class Node implements \Sabre\DAV\INode
                 stream_copy_to_stream($data, $new_data);
                 rewind($new_data);
                 $data = $new_data;
+            }
+            else {
+                rewind($data);
             }
         }
 
