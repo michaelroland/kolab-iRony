@@ -119,23 +119,30 @@ class Plugin extends CardDAV\Plugin
      * An exception is thrown if it's not.
      *
      * @param resource|string $data
+     * @param bool $modified Should be set to true, if this event handler
+     *                       changed &$data.
      * @return void
      */
-    protected function validateVCard(&$data)
+    protected function validateVCard(&$data, &$modified)
     {
         // If it's a stream, we convert it to a string first.
         if (is_resource($data)) {
             $data = stream_get_contents($data);
         }
 
+        $before = md5($data);
+
         // Converting the data to unicode, if needed.
         $data = DAV\StringUtil::ensureUTF8($data);
+
+        if (md5($data) !== $before) $modified = true;
 
         try {
             $vobj = VObject\Reader::read($data, VObject\Reader::OPTION_FORGIVING | VObject\Reader::OPTION_IGNORE_INVALID_LINES);
 
-            if ($vobj->name == 'VCARD')
+            if ($vobj->name == 'VCARD') {
                 $this->parsed_vcard = $vobj;
+            }
         }
         catch (VObject\ParseException $e) {
             throw new DAV\Exception\UnsupportedMediaType('This resource only supports valid vcard data. Parse error: ' . $e->getMessage());
