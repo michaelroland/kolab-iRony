@@ -40,7 +40,7 @@ define('RCUBE_PLUGINS_DIR',  KOLAB_DAV_ROOT . '/lib/plugins/');
 ini_set('error_reporting', E_ALL &~ E_NOTICE &~ E_STRICT);
 
 // use composer's autoloader for dependencies
-$loader = require_once(KOLAB_DAV_ROOT . '/vendor/autoload.php');
+$loader = require(KOLAB_DAV_ROOT . '/vendor/autoload.php');
 $loader->set('Kolab', array(KOLAB_DAV_ROOT . '/lib'));  // register iRony namespace(s)
 $loader->setUseIncludePath(true);  // enable include_path to load PEAR classes from their default location
 

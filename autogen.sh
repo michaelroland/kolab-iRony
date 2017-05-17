@@ -41,15 +41,7 @@ fi
 cp -a ${chwala_dir}/lib lib/FileAPI
 
 pushd lib/FileAPI/ext/
-rm -rf \
-    Auth/ \
-    HTTP/ \
-    Mail/ \
-    Net/  \
-    PEAR5.php \
-    PEAR.php \
-    Roundcube/
-
+rm -rf Roundcube/
 popd
 
 cp -a ${roundcube_dir}/program/lib/Roundcube/ lib/Roundcube
