@@ -59,6 +59,7 @@ $config['kolabdav_caldav_inbox'] = false;
 // Enables the CardDAV Directory Gateway Extension by exposing an
 // LDAP-based address book in the pricipals address book collection.
 // Properties of this option are the same as for $config['ldap_public'] entries.
+// NOTE: Mapping of (additional) 'uid' and 'changed' fields is required!
 /*
 $config['kolabdav_ldap_directory'] = array(
     'name'           => 'Global Address Book',
