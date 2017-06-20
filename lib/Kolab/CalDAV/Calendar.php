@@ -85,7 +85,7 @@ class Calendar extends \Sabre\CalDAV\Calendar
     {
         // return ACL information based on IMAP MYRIGHTS
         $rights = $this->storage->get_myrights();
-        if ($rights && !PEAR::isError($rights)) {
+        if ($rights && !is_a($rights, 'PEAR_Error')) {
             // user has at least read access to calendar folders listed
             $acl = array(
                 array(

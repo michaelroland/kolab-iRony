@@ -120,7 +120,7 @@ class AddressBook extends \Sabre\CardDAV\AddressBook implements \Sabre\CardDAV\I
     {
         // return ACL information based on IMAP MYRIGHTS
         $rights = $this->storage ? $this->storage->get_myrights() : null;
-        if ($rights && !PEAR::isError($rights)) {
+        if ($rights && !is_a($rights, 'PEAR_Error')) {
             // user has at least read access to calendar folders listed
             $acl = array(
                 array(
