@@ -928,14 +928,20 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                     break;
 
                 case 'BDAY':
-                    $contact['birthday'] = new \DateTime($value);
-                    $contact['birthday']->_dateonly = true;
-                    break;
-
                 case 'ANNIVERSARY':
                 case 'X-ANNIVERSARY':
-                    $contact['anniversary'] = new \DateTime($value);
-                    $contact['anniversary']->_dateonly = true;
+                    // We use getDateTime() method to support partial date format from vCard 4
+                    // and to not throw exceptions on invalid input (T2492)
+                    if (method_exists($prop, 'getDateTime')) {
+                        $key = $prop->name == 'BDAY' ? 'birthday' : 'anniversary';
+                        try {
+                            $contact[$key] = $prop->getDateTime();
+                            $contact[$key]->_dateonly = true;
+                        }
+                        catch (\Exception $e) {
+                            // ignore
+                        }
+                    }
                     break;
 
                 case 'SEX':

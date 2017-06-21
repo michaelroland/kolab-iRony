@@ -52,4 +52,36 @@ class ContactsBackendTest extends PHPUnit_Framework_TestCase
             array('PHOTO;MEDIATYPE=image/jpeg:http://example.com/photo.jpg', null, '4.0'),
         );
     }
+
+    /**
+     * Test vCard BDAY/ANNIVERSARY input (T2492)
+     *
+     * @dataProvider data_T2492
+     */
+    function test_T2492($input, $output, $key)
+    {
+        $backend = new ContactsBackend;
+        $vcard   = "BEGIN:VCARD\nVERSION:4.0\nN:Thompson;Default;;;\nUID:1\n$input\nEND:VCARD";
+        $contact = $backend->parse_vcard($vcard);
+
+        if ($result = $contact[$key]) {
+            $result = $result->format('Ymd');
+        }
+
+        $this->assertSame($output, $result);
+    }
+
+    function data_T2492()
+    {
+        return array(
+            array("BDAY:19960415", "19960415", 'birthday'),
+            array("BDAY:19960415T231000Z", "19960415", 'birthday'),
+            array("BDAY:--0415", date('Y')."0415", 'birthday'),
+            array("BDAY;VALUE=text:circa 1800", null, 'birthday'),
+            array("ANNIVERSARY:19960415", "19960415", 'anniversary'),
+            array("ANNIVERSARY:19960415T231000Z", "19960415", 'anniversary'),
+            array("ANNIVERSARY:--0415", date('Y')."0415", 'anniversary'),
+            array("ANNIVERSARY;VALUE=text:circa 1800", null, 'anniversary'),
+        );
+    }
 }
