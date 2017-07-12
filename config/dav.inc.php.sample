@@ -42,9 +42,6 @@ $config['kolabdav_auth_cache_ttl'] = '1h';
 // by http requests. This will write log to /var/log/iRony/console
 $config['kolabdav_console'] = false;
 
-// enable per-user debugging if /var/log/iRony/<username>/ folder exists
-$config['kolabdav_user_debug'] = false;
-
 // enable logging of full HTTP payload
 // (bitmask of these values: 2 = HTTP Requests, 4 = HTTP Responses)
 $config['kolabdav_http_log'] = 0;

@@ -33,8 +33,8 @@ use Kolab\DAV\Auth\HTTPBasic;
  */
 class DAVLogger extends DAV\ServerPlugin
 {
-    const CONSOLE = 1;
-    const HTTP_REQUEST = 2;
+    const CONSOLE       = 1;
+    const HTTP_REQUEST  = 2;
     const HTTP_RESPONSE = 4;
 
     private $rcube;
@@ -48,7 +48,7 @@ class DAVLogger extends DAV\ServerPlugin
      */
     public function __construct($level = 1)
     {
-        $this->rcube = rcube::get_instance();
+        $this->rcube    = rcube::get_instance();
         $this->loglevel = $level;
     }
 
@@ -78,8 +78,9 @@ class DAVLogger extends DAV\ServerPlugin
         $this->method = $request->getMethod();
 
         // turn on per-user http logging if the destination file exists
-        if ($this->loglevel < 2 && $this->rcube->config->get('kolabdav_user_debug', false)
-            && ($log_dir = $this->user_log_dir()) && file_exists($log_dir . '/httpraw')) {
+        if ($this->loglevel < 2 && $this->rcube->config->get('per_user_logging', false)
+            && ($log_dir = $this->user_log_dir()) && file_exists($log_dir . '/httpraw')
+        ) {
             $this->loglevel |= (self::HTTP_REQUEST | self::HTTP_RESPONSE);
         }
 
@@ -107,13 +108,13 @@ class DAVLogger extends DAV\ServerPlugin
                 $http_headers[$hdr] = "$hdr: $value";
             }
 
-            $this->write_log('httpraw', $request->getMethod() . ' ' . $request->getUrl() . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n" .
+            rcube::write_log('httpraw', $request->getMethod() . ' ' . $request->getUrl() . ' ' . $_SERVER['SERVER_PROTOCOL'] . "\n" .
                join("\n", $http_headers) . "\n\n" . $http_body);
         }
 
         // log to console
         if ($this->loglevel & self::CONSOLE) {
-           $this->write_log('console', $this->method . ' ' . $request->getUrl());
+            rcube::write_log('console', $this->method . ' ' . $request->getUrl());
         }
     }
 
@@ -161,16 +162,16 @@ class DAVLogger extends DAV\ServerPlugin
             $time = microtime(true) - KOLAB_DAV_START;
 
             if (function_exists('memory_get_usage'))
-               $mem = round(memory_get_usage() / 1024 / 1024, 1) . 'MB';
+                $mem = round(memory_get_usage() / 1024 / 1024, 1) . 'MB';
             if (function_exists('memory_get_peak_usage'))
-               $mem .= '/' . round(memory_get_peak_usage() / 1024 / 1024, 1) . 'MB';
+                $mem .= '/' . round(memory_get_peak_usage() / 1024 / 1024, 1) . 'MB';
 
-            $this->write_log('console', sprintf("/%s: %0.4f sec; %s", $this->method, $time, $mem));
+            rcube::write_log('console', sprintf("/%s: %0.4f sec; %s", $this->method, $time, $mem));
         }
 
         // log full HTTP reponse
         if ($this->loglevel & self::HTTP_RESPONSE) {
-            $this->write_log('httpraw', "RESPONSE: " . $this->server->httpResponse->dump());
+            rcube::write_log('httpraw', "RESPONSE: " . $this->server->httpResponse->dump());
         }
     }
 
@@ -185,26 +186,8 @@ class DAVLogger extends DAV\ServerPlugin
                 $msg[] = !is_string($arg) ? var_export($arg, true) : $arg;
             }
 
-            $this->write_log('console', join(";\n", $msg));
+            rcube::write_log('console', join(";\n", $msg));
         }
-    }
-
-    /**
-     * Wrapper for rcube::write_log() that can write per-user logs
-     */
-    public function write_log($filename, $msg)
-    {
-        // dump data per user
-        if ($this->rcube->config->get('kolabdav_user_debug', false)) {
-            if ($this->user_log_dir()) {
-               $filename = HTTPBasic::$current_user . '/' . $filename;
-            }
-            else {
-               return;  // don't log
-            }
-        }
-
-        rcube::write_log($filename, $msg);
     }
 
     /**
@@ -217,4 +200,4 @@ class DAVLogger extends DAV\ServerPlugin
 
         return HTTPBasic::$current_user && is_writable($user_log_dir) ? $user_log_dir : false;
     }
-} 
+}
