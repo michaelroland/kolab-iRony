@@ -69,7 +69,7 @@ $rcube->plugins->init($rcube);
 $rcube->plugins->load_plugins($plugins, $required);
 
 // enable logger
-if ($rcube->config->get('kolabdav_console') || $rcube->config->get('kolabdav_user_debug')) {
+if ($rcube->config->get('kolabdav_console') || $rcube->config->get('per_user_logging')) {
     $logger = new \Kolab\Utils\DAVLogger((\Kolab\Utils\DAVLogger::CONSOLE | $rcube->config->get('kolabdav_http_log', 0)));
 }
 
