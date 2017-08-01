@@ -92,6 +92,8 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             self::$current_user = $auth['user'];
             self::$current_pass = $auth['pass'];
 
+            $plugin = $rcube->plugins->exec_hook('ready', array('task' => 'iRony'));
+
             return true;
         }
 
