@@ -27,6 +27,8 @@ use Sabre\DAV;
 use Sabre\CalDAV;
 use Sabre\VObject;
 use Sabre\HTTP;
+use Kolab\DAV\Auth\HTTPBasic;
+
 
 /**
  * Extended CalDAV Schedule plugin
