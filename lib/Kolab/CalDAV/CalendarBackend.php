@@ -289,7 +289,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         $query = $this->_event_filter_query();
         $storage = $this->get_storage_folder($calendarId);
         if ($storage) {
-            foreach ($storage->select($query) as $event) {
+            foreach ($storage->select($query, true) as $event) {
                 // post-filter events to suppress declined invitations
                 if (!$this->_event_filter_compare($event)) {
                     continue;
@@ -628,7 +628,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
 
       $results = array();
       if ($storage = $this->get_storage_folder($calendarId)) {
-          foreach ($storage->select($query) as $event) {
+          foreach ($storage->select($query, true) as $event) {
               // post-filter events to suppress declined invitations
               if ($this->_event_filter_compare($event)) {
                   $results[] = VObjectUtils::uid2uri($event['uid'], '.ics');
