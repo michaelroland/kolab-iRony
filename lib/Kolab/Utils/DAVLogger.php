@@ -175,7 +175,7 @@ class DAVLogger extends DAV\ServerPlugin
             $this->rcube->config->set('per_user_logging', false);
 
             rcube::write_log('console', sprintf("%s:%s [%s] %0.4f sec",
-                $this->method ?: 'GET', $_SERVER['REQUEST_URI'], $mem, $time));
+                $this->method ?: $_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI'], $mem, $time));
         }
     }
 
