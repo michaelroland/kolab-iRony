@@ -158,20 +158,24 @@ class DAVLogger extends DAV\ServerPlugin
      */
     public function _exit()
     {
-        if ($this->loglevel & self::CONSOLE) {
-            $time = microtime(true) - KOLAB_DAV_START;
-
-            if (function_exists('memory_get_usage'))
-                $mem = round(memory_get_usage() / 1024 / 1024, 1) . 'MB';
-            if (function_exists('memory_get_peak_usage'))
-                $mem .= '/' . round(memory_get_peak_usage() / 1024 / 1024, 1) . 'MB';
-
-            rcube::write_log('console', sprintf("/%s: %0.4f sec; %s", $this->method, $time, $mem));
-        }
-
         // log full HTTP reponse
         if ($this->loglevel & self::HTTP_RESPONSE) {
             rcube::write_log('httpraw', "RESPONSE: " . $this->server->httpResponse->dump());
+        }
+
+        if (($this->loglevel & self::CONSOLE) || $this->rcube->config->get('performance_stats')) {
+            $time = microtime(true) - KOLAB_DAV_START;
+
+            if (function_exists('memory_get_usage'))
+                $mem = round(memory_get_usage() / 1024 / 1024, 1);
+            if (function_exists('memory_get_peak_usage'))
+                $mem .= '/' . round(memory_get_peak_usage() / 1024 / 1024, 1);
+
+            // we have to disable per_user_logging to make sure stats end up in the main console log
+            $this->rcube->config->set('per_user_logging', false);
+
+            rcube::write_log('console', sprintf("%s:%s [%s] %0.4f sec",
+                $this->method ?: 'GET', $_SERVER['REQUEST_URI'], $mem, $time));
         }
     }
 
