@@ -156,6 +156,11 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     {
         console(__METHOD__, $principalUri, $this->useragent);
 
+        // Reset imap cache so we work with up-to-date folders list
+        // We do this only when a client requests list of address books,
+        // and we assume clients do not ask for list too often (Bifrost#T175679)
+        rcube::get_instance()->get_storage()->clear_cache('mailboxes', true);
+
         $this->_read_sources();
 
         // special case for the apple address book which only supports one (!) address book

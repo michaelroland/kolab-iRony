@@ -152,6 +152,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
             return array();
         }
 
+        // Reset imap cache so we work with up-to-date folders list
+        // We do this only when a client requests list of calendars,
+        // and we assume clients do not ask for list too often (Bifrost#T175679)
+        rcube::get_instance()->get_storage()->clear_cache('mailboxes', true);
+
         $this->_read_calendars();
 
         $calendars = array();
