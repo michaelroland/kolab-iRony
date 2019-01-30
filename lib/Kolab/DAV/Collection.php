@@ -46,8 +46,7 @@ class Collection extends Node implements \Sabre\DAV\ICollection
         $this->children = array();
 
         try {
-            // @TODO: This should be cached too (out of this class)
-            $folders = $this->backend->folder_list();
+            $folders = $this->backend->folder_list($this->path, 1);
             $folders = $folders['list'];
         }
         catch (Exception $e) {
@@ -57,6 +56,8 @@ class Collection extends Node implements \Sabre\DAV\ICollection
         // get subfolders
         foreach ($folders as $folder) {
             // need root-folders or subfolders of specified folder
+            // TODO: This check at some point can be removed, as chwala
+            // API added support for this
             if (!$path_len || strpos($folder, $this->path . '/') === 0) {
                 $virtual = false;
 
