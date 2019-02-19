@@ -64,7 +64,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
                 'pass'  => $password,
             ));
 
-            if ($cache && !$auth['abort']) {
+            if ($cache && !$auth['abort'] && empty($auth['no-cache'])) {
                 $cache->set($cache_key, array(
                     'user'  => $auth['user'],
                     'host'  => $auth['host'],
