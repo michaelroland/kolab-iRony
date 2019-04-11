@@ -101,7 +101,9 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             $error_str = rcube::get_instance()->get_storage()->get_error_str();
         }
 
-        \kolab_auth::log_login_error($auth['user'], $error_str ?: $error);
+        if (class_exists('kolab_auth')) {
+            \kolab_auth::log_login_error($auth['user'], $error_str ?: $error);
+        }
 
         // IMAP server failure... send 503 error
         if ($error == rcube_imap_generic::ERROR_BAD) {
