@@ -175,6 +175,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
         $storage      = $rcube->get_storage();
         $login_lc     = $rcube->config->get('login_lc');
         $default_port = $rcube->config->get('default_port', 143);
+        $username_domain = $rcube->config->get('username_domain');
 
         // parse $host
         $a_host = parse_url($host);
@@ -191,6 +192,24 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
         if (!$port) {
             $port = $default_port;
+        }
+
+        // Check if we need to add/force domain to username
+        if (!empty($username_domain)) {
+            $domain = is_array($username_domain) ? $username_domain[$host] : $username_domain;
+
+            if ($domain = rcube_utils::parse_host((string)$domain, $host)) {
+                $pos = strpos($username, '@');
+
+                // force configured domains
+                if ($pos !== false && $rcube->config->get('username_domain_forced')) {
+                    $username = substr($username, 0, $pos) . '@' . $domain;
+                }
+                // just add domain if not specified
+                else if ($pos === false) {
+                    $username .= '@' . $domain;
+                }
+            }
         }
 
         // Convert username to lowercase. If storage backend
