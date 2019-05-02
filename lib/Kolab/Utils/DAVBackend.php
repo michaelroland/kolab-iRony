@@ -39,8 +39,9 @@ class DAVBackend
     /**
      * Getter for a kolab_storage_folder with the given UID
      *
-     * @param string  Folder UID (saved in annotation)
-     * @param string  Kolab folder type (for selecting candidates)
+     * @param string Folder UID (saved in annotation)
+     * @param string Kolab folder type (for selecting candidates)
+     *
      * @return object \kolab_storage_folder instance
      */
     public static function get_storage_folder($uid, $type)
@@ -61,7 +62,7 @@ class DAVBackend
      */
     public static function check_storage_folder($folder)
     {
-        if ($folder == null) {
+        if (empty($folder)) {
             throw new DAV\Exception\NotFound('The requested collection was not found');
         }
 
@@ -109,12 +110,12 @@ class DAVBackend
     }
 
     /**
-     * Set callback handler for property changes on the given folder
+     * Callback handler for property changes on the given folder
      *
-     * @param object $folder kolab_storage_folder instance to operate on
-     * @param oject $propPatch PropPatch instance with the property updates
+     * @param kolab_storage_folder $folder    Folder object
+     * @param \Sabre\DAV\PropPatch $propPatch Property updates
      */
-    public static function handle_propatch($folder, \Sabre\DAV\PropPatch $propPatch)
+    public static function handle_proppatch($folder, \Sabre\DAV\PropPatch $propPatch)
     {
         $propPatch->handle(
             array('{DAV:}displayname','{http://apple.com/ns/ical/}calendar-color'),
@@ -154,6 +155,7 @@ class DAVBackend
      *
      * @param object $folder kolab_storage_folder instance to operate on
      * @param object $mutations Hash array with propeties to change
+     *
      * @return void
      */
     public static function folder_update($folder, array $mutations)
@@ -224,9 +226,10 @@ class DAVBackend
      * If the creation was a success, an id must be returned that can be used to reference
      * this resource in other methods.
      *
-     * @param array $properties
+     * @param array  $properties
      * @param string $type
      * @param string $uid
+     *
      * @return false|string
      */
     public function folder_create($type, array $properties, $uid)

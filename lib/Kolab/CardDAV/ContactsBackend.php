@@ -247,7 +247,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
             return false;
 
         if ($folder = $this->get_storage_folder($addressBookId)) {
-            DAVBackend::handle_propatch($folder, $propPatch);
+            DAVBackend::handle_proppatch($folder, $propPatch);
         }
     }
 

@@ -239,7 +239,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         console(__METHOD__, $calendarId, $propPatch);
 
         if ($folder = $this->get_storage_folder($calendarId)) {
-            DAVBackend::handle_propatch($folder, $propPatch);
+            DAVBackend::handle_proppatch($folder, $propPatch);
         }
     }
 
