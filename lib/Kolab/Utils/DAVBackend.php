@@ -170,8 +170,20 @@ class DAVBackend
                     if ($val == html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET)) {
                         break;
                     }
+
+                    // This is to fix potential MacOS client bug where
+                    // it sets the calendar name to the folder uid
+                    if ($val === $folder->get_uid()) {
+                        break;
+                    }
+
                     // restrict renaming to personal folders only
                     if ($folder->get_namespace() == 'personal') {
+                        // Sanity check, displayname can't be deleted
+                        if ($val === null) {
+                            break;
+                        }
+
                         $parts = preg_split('!(\s*/\s*|\s+[»:]\s+)!', $val);
                         $updates['oldname'] = $folder->name;
                         $updates['name'] = array_pop($parts);
