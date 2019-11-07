@@ -27,6 +27,7 @@ use Sabre\DAV;
 use Sabre\DAVACL;
 use Sabre\CardDAV;
 use Sabre\VObject;
+use Kolab\DAV\Auth\HTTPBasic;
 
 
 /**
@@ -70,6 +71,12 @@ class Plugin extends CardDAV\Plugin
         // publish global ldap address book for this principal
         if ($node instanceof DAVACL\IPrincipal && empty($this->directories) && \rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
             $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
+        }
+
+        if ($node instanceof DAV\SimpleCollection) {
+            $propFind->handle('{' . self::NS_CARDDAV . '}addressbook-home-set', function() {
+                return new DAV\Property\Href($this->getAddressBookHomeForPrincipal(HTTPBasic::$current_user) . '/');
+            });
         }
 
         parent::propFindEarly($propFind, $node);
