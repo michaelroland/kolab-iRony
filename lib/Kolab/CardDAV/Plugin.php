@@ -73,11 +73,9 @@ class Plugin extends CardDAV\Plugin
             $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
         }
 
-        if ($node instanceof DAV\SimpleCollection) {
-            $propFind->handle('{' . self::NS_CARDDAV . '}addressbook-home-set', function() {
-                return new DAV\Property\Href($this->getAddressBookHomeForPrincipal(HTTPBasic::$current_user) . '/');
-            });
-        }
+        $propFind->handle('{' . self::NS_CARDDAV . '}addressbook-home-set', function() {
+            return new DAV\Property\Href($this->getAddressBookHomeForPrincipal(HTTPBasic::$current_user) . '/');
+        });
 
         parent::propFindEarly($propFind, $node);
     }
