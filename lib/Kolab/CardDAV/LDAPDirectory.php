@@ -417,6 +417,8 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
         }
         else if (!empty($contact['changed'])) {
             try {
+                //                                      2018   05     14     06     22     31    .0Z     2018-05-14T06:22:31
+                $contact['changed'] = preg_replace('/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\.0Z$/', '$1-$2-$3T$4:$5:$6', $contact['changed']);
                 $contact['changed'] = new \DateTime($contact['changed']);
                 $contact['_timestamp'] = intval($contact['changed']->format('U'));
             }
