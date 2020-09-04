@@ -42,14 +42,14 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 {
     const DIRECTORY_NAME = 'ldap-directory';
 
-    private $config;
-    private $ldap;
-    private $carddavBackend;
-    private $principalUri;
-    private $addressBookInfo = array();
-    private $cache;
-    private $query;
-    private $filter;
+    protected $config;
+    protected $ldap;
+    protected $carddavBackend;
+    protected $principalUri;
+    protected $addressBookInfo = array();
+    protected $cache;
+    protected $query;
+    protected $filter;
 
     /**
      * Default constructor

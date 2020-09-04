@@ -68,9 +68,14 @@ class Plugin extends CardDAV\Plugin
      */
     public function propFindEarly(DAV\PropFind $propFind, DAV\INode $node)
     {
-        // publish global ldap address book for this principal
-        if ($node instanceof DAVACL\IPrincipal && empty($this->directories) && \rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
-            $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
+        // publish global ldap address book and resources list for this principal
+        if ($node instanceof DAVACL\IPrincipal && empty($this->directories)) {
+            if (\rcube::get_instance()->config->get('kolabdav_ldap_directory')) {
+                $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPDirectory::DIRECTORY_NAME;
+            }
+            if (\rcube::get_instance()->config->get('kolabdav_ldap_resources')) {
+                $this->directories[] = self::ADDRESSBOOK_ROOT . '/' . $node->getName() . '/' . LDAPResources::DIRECTORY_NAME;
+            }
         }
 
         $propFind->handle('{' . self::NS_CARDDAV . '}addressbook-home-set', function() {
@@ -241,7 +246,7 @@ class Plugin extends CardDAV\Plugin
         }
 
         // query on LDAP node: pass along filter query
-        if ($node instanceof LDAPDirectory) {
+        if ($node instanceof LDAPDirectory || $node instanceof LDAPResources) {
             $query = new CardDAV\AddressBookQueryParser($dom);
             $query->parse();
 

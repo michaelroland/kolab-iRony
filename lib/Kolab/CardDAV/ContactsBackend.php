@@ -47,6 +47,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
     );
 
     public $ldap_directory;
+    public $ldap_resources;
 
     private $sources;
     private $folders;
@@ -361,6 +362,12 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         else if ($addressBookId == LDAPDirectory::DIRECTORY_NAME) {
             if (is_object($this->ldap_directory)) {
                 $contact = $this->ldap_directory->getContactObject($uid);
+            }
+        }
+        // read card data from LDAP resources
+        else if ($addressBookId == LDAPResources::DIRECTORY_NAME) {
+            if (is_object($this->ldap_resources)) {
+                $contact = $this->ldap_resources->getContactObject($uid);
             }
         }
         else {

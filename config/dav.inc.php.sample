@@ -113,6 +113,45 @@ $config['kolabdav_ldap_directory'] = array(
         'changed'           => 'modifytimestamp',
     ),
 );
+
+// Expose all resources as an LDAP-based address book in the pricipals address book collection.
+// This enables Non-Kolab-Clients to add resources to an event.
+// Properties of this option are the same as for $config['kolabdav_ldap_directory'] entries.
+$config['kolabdav_ldap_resources']  = array(
+    'name'           => 'Global Resources',
+    'hosts'          => 'localhost',
+    'port'           => 389,
+    'use_tls'        => false,
+    'user_specific'  => false,
+    'search_base_dn' => 'ou=People,dc=example,dc=org',
+    'search_bind_dn' => 'uid=kolab-service,ou=Special Users,dc=example,dc=org',
+    'search_bind_pw' => 'Welcome2KolabSystems',
+    'search_filter'  => '(&(objectClass=inetOrgPerson)(mail=%fu))',
+    'base_dn'        => 'ou=Resources,dc=example,dc=org',
+    'bind_dn'        => 'uid=kolab-service,ou=Special Users,dc=example,dc=org',
+    'bind_pass'      => 'Welcome2KolabSystems',
+    'ldap_version'   => 3,
+    'filter'         => '(|(objectclass=groupofuniquenames)(objectclass=groupofurls)(objectclass=kolabsharedfolder))',
+    'search_fields'  => array('displayname', 'mail'),
+    'sort'           => array('displayname', 'sn', 'givenname', 'cn'),
+    'scope'          => 'sub',
+    'searchonly'     => false,  // Set to false to enable listing
+    'sizelimit'      => '1000',
+    'timelimit'      => '0',
+    'fieldmap'       => array(
+        // Internal         => LDAP
+        'name'              => 'cn',
+        'email'             => 'mail',
+        'owner'             => 'owner',
+        'description'       => 'description',
+        'attributes'        => 'kolabdescattribute',
+        'members'           => 'uniquemember',
+        // these mappings are required for owner display
+        'phone'             => 'telephoneNumber',
+        'mobile'            => 'mobile',
+    ),
+);
+
 */
 
 // Enable caching for LDAP directory data.

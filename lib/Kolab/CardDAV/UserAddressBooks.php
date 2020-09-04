@@ -37,6 +37,7 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
 {
     // pseudo-singleton instance
     private $ldap_directory;
+    private $ldap_resources;
 
     /**
      * Returns a list of addressbooks
@@ -55,6 +56,10 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
             $objs[] = $this->getLDAPDirectory();
         }
 
+        if (rcube::get_instance()->config->get('kolabdav_ldap_resources')) {
+            $objs[] = $this->getLDAPResources();
+        }
+
         return $objs;
     }
 
@@ -68,6 +73,9 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
     {
         if ($name == LDAPDirectory::DIRECTORY_NAME) {
             return $this->getLDAPDirectory();
+        }
+        if ($name == LDAPResources::DIRECTORY_NAME) {
+            return $this->getLDAPResources();
         }
 
         if ($addressbook = $this->carddavBackend->getAddressBookByName($name)) {
@@ -91,6 +99,21 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         }
 
         return $this->ldap_directory;
+    }
+
+    /**
+     * Getter for the singleton instance of the LDAP resources
+     */
+    private function getLDAPResources()
+    {
+        if (!$this->ldap_resources) {
+            $rcube = rcube::get_instance();
+            $config = $rcube->config->get('kolabdav_ldap_resources');
+            $config['debug'] = $rcube->config->get('ldap_debug');
+            $this->ldap_resources = new LDAPResources($config, $this->principalUri, $this->carddavBackend);
+        }
+
+        return $this->ldap_resources;
     }
 
 
