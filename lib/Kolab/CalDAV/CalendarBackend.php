@@ -300,6 +300,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                     continue;
                 }
 
+                // Make sure to not return invalid objects
+                if (empty($event) || empty($event['uid'])) {
+                    continue;
+                }
+
                 // get tags/categories from relations
                 $this->load_tags($event);
 
