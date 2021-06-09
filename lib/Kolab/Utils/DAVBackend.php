@@ -184,7 +184,7 @@ class DAVBackend
                             break;
                         }
 
-                        $parts = preg_split('!(\s*/\s*|\s+[»:]\s+)!', $val);
+                        $parts = preg_split('!(*UTF8)(\s*/\s*|\s+[»:]\s+)!', $val);
                         $updates['oldname'] = $folder->name;
                         $updates['name'] = array_pop($parts);
                         $updates['parent'] = join('/', $parts);
