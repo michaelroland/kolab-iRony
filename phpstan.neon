@@ -1,0 +1,12 @@
+parameters:
+    level: 0
+    parallel:
+        processTimeout: 300.0
+    ignoreErrors:
+        - '#Access to an undefined property#'
+    paths:
+        - lib/
+    scanDirectories:
+        - Roundcube/
+        - plugins/
+        - FileAPI/
