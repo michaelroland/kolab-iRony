@@ -32,7 +32,7 @@ use \rcube_ldap;
 use \rcube_ldap_generic;
 use Sabre\DAV;
 use Sabre\DAVACL;
-use Sabre\CardDAV\Property;
+use Sabre\CardDAV;
 use Kolab\Utils\VObjectUtils;
 
 /**
@@ -63,7 +63,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
             'id' => self::DIRECTORY_NAME,
             'uri' => self::DIRECTORY_NAME,
             '{DAV:}displayname' => $config['name'] ?: "LDAP Directory",
-            '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new Property\SupportedAddressData(),
+            '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Xml\Property\SupportedAddressData(),
             'principaluri' => $principalUri,
         );
 
@@ -284,7 +284,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                 $response[$propertyName] = $this->addressBookInfo[$propertyName];
             }
             else if ($propertyName == '{DAV:}getlastmodified') {
-                $response[$propertyName] = new DAV\Property\GetLastModified($this->getLastModified());
+                $response[$propertyName] = new DAV\Xml\Property\GetLastModified($this->getLastModified());
             }
         }
 

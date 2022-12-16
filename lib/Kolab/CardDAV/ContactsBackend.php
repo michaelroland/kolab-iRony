@@ -113,7 +113,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'uri' => $id,
                 '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
-                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Property\SupportedAddressData(self::$supported_address_data),
+                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Xml\Property\SupportedAddressData(self::$supported_address_data),
             );
             $this->aliases[$folder->name] = $id;
 
@@ -205,7 +205,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
                 'uri' => '__all__',
                 '{DAV:}displayname' => 'All',
                 '{http://calendarserver.org/ns/}getctag' => join(':', $ctags),
-                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Property\SupportedAddressData(self::$supported_address_data),
+                '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Xml\Property\SupportedAddressData(self::$supported_address_data),
             );
         }
 

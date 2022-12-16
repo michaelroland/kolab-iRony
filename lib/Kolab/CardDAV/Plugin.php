@@ -79,7 +79,7 @@ class Plugin extends CardDAV\Plugin
         }
 
         $propFind->handle('{' . self::NS_CARDDAV . '}addressbook-home-set', function() {
-            return new DAV\Property\Href($this->getAddressBookHomeForPrincipal(HTTPBasic::$current_user) . '/');
+            return new DAV\Xml\Property\Href($this->getAddressBookHomeForPrincipal(HTTPBasic::$current_user) . '/');
         });
 
         parent::propFindEarly($propFind, $node);
@@ -181,11 +181,12 @@ class Plugin extends CardDAV\Plugin
      *
      * (optimized version that skips parsing and re-serialization if possible)
      *
-     * @param string $data
+     * @param string|resource $data
      * @param string $target
+     * @param array $propertiesFilter
      * @return string
      */
-    protected function convertVCard($data, $target)
+    protected function convertVCard($data, $target, $propertiesFilter = array())
     {
         $version = 'vcard3';
         if (is_string($data) && preg_match('/VERSION:(\d)/', $data, $m)) {
@@ -193,11 +194,14 @@ class Plugin extends CardDAV\Plugin
         }
 
         // no conversion needed
-        if ($target == $version) {
+        if ($target == $version && empty($propertiesFilter)) {
+            if (is_resource($data)) {
+                $data = stream_get_contents($data);
+            }
             return $data;
         }
 
-        return parent::convertVCard($data, $target);
+        return parent::convertVCard($data, $target, $propertiesFilter);
     }
 
     /**

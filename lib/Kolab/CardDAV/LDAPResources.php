@@ -8,12 +8,7 @@
 namespace Kolab\CardDAV;
 
 use \rcube;
-use \rcube_ldap;
-use \rcube_ldap_generic;
-use Sabre\DAV;
-use Sabre\DAVACL;
-use Sabre\CardDAV\Property;
-use Kolab\Utils\VObjectUtils;
+use Sabre\CardDAV;
 
 class LDAPResources extends LDAPDirectory
 {
@@ -31,7 +26,7 @@ class LDAPResources extends LDAPDirectory
             'id' => self::DIRECTORY_NAME,
             'uri' => self::DIRECTORY_NAME,
             '{DAV:}displayname' => $config['name'] ?: "LDAP Resources", 
-            '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new Property\SupportedAddressData(),
+            '{urn:ietf:params:xml:ns:carddav}supported-address-data' => new CardDAV\Xml\Property\SupportedAddressData(),
             'principaluri' => $principalUri,
         );
 

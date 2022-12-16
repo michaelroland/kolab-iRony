@@ -24,7 +24,7 @@
 
 namespace Kolab\CardDAV;
 
-use Sabr\DAV;
+use Sabre\DAV;
 
 /**
  * Represents a single vCard from an LDAP directory
