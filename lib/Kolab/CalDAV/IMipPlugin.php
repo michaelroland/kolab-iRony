@@ -29,7 +29,6 @@ use \Mail_mime;
 
 use Sabre\VObject;
 use Sabre\CalDAV;
-use Sabre\DAV;
 
 /**
  * iMIP plugin.
@@ -107,7 +106,7 @@ class IMipPlugin extends CalDAV\Schedule\IMipPlugin
             'To' => $to,
             'From' => $from,
             'Date' => date('r'),
-            'Reply-To' => $originator,
+            'Reply-To' => $sender,
             'Message-ID' => $rcube->gen_message_id(),
             'X-Sender' => $sender,
             'Subject' => $subject,
