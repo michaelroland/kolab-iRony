@@ -872,6 +872,7 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                 if ($update) {
                     // map attachments attribute
                     $object['_attachments'] = $object['attachments'];
+                    // @phpstan-ignore-next-line
                     unset($object['attachments']);
 
                     $success = $storage->save($object, $object['_type'], $existing['uid']);

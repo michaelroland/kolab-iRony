@@ -422,7 +422,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
                 $contact['changed'] = new \DateTime($contact['changed']);
                 $contact['_timestamp'] = intval($contact['changed']->format('U'));
             }
-            catch (Exception $e) {
+            catch (\Exception $e) {
                 $contact['changed'] = null;
             }
         }

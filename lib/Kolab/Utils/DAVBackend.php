@@ -53,7 +53,7 @@ class DAVBackend
             }
         }
 
-        self::check_storage_folder(null);
+        throw new DAV\Exception\NotFound('The requested collection was not found');
     }
 
     /**
@@ -156,7 +156,7 @@ class DAVBackend
      * @param object $folder kolab_storage_folder instance to operate on
      * @param object $mutations Hash array with propeties to change
      *
-     * @return void
+     * @return bool|array
      */
     public static function folder_update($folder, array $mutations)
     {
@@ -244,7 +244,7 @@ class DAVBackend
      *
      * @return false|string
      */
-    public function folder_create($type, array $properties, $uid)
+    public static function folder_create($type, array $properties, $uid)
     {
         $props = array(
             'type' => $type,
