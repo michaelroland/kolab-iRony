@@ -28,7 +28,6 @@ use \rcube_utils;
 use \libcalendaring;
 use \kolab_storage;
 use Sabre\DAV\Exception;
-use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
 use Sabre\Uri;
 
