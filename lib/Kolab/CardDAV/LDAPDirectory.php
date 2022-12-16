@@ -48,7 +48,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     protected $principalUri;
     protected $addressBookInfo = array();
     protected $cache;
-    protected $query;
+    protected CardDAV\Xml\Request\AddressBookQueryReport $query;
     protected $filter;
 
     /**
@@ -95,11 +95,12 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 
     /**
      * Set parsed addressbook-query object for filtering
+     * @param Sabre\CardDAV\Xml\Request\AddressBookQueryReport $report
      */
-    function setAddressbookQuery($query)
+    function setAddressbookQuery($report)
     {
-        $this->query = $query;
-        $this->filter = $this->addressbook_query2ldap_filter($query);
+        $this->query = $report;
+        $this->filter = $this->addressbook_query2ldap_filter($report);
     }
 
     /**
@@ -463,6 +464,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
 
     /**
      * Translate the given AddressBookQueryParser object into an LDAP filter
+     * @param Sabre\CardDAV\Xml\Request\AddressBookQueryReport $report
      */
     private function addressbook_query2ldap_filter($query)
     {
