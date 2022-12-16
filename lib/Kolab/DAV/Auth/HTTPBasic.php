@@ -154,8 +154,11 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
             // take the first entry if $host is not found
             if (is_array($host)) {
-                list($key, $val) = each($default_host);
-                $host = is_numeric($key) ? $val : $key;
+                foreach($host as $key => $val) {
+                    $host = is_numeric($key) ? $val : $key;
+                    $host->next();
+                    break;
+                }
             }
         }
 
