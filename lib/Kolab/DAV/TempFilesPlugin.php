@@ -36,6 +36,7 @@ use Kolab\DAV\Auth\HTTPBasic;
 class TempFilesPlugin extends DAV\TemporaryFileFilterPlugin
 {
     protected $baseDir;
+    private $dataDir;
 
     /**
      * Creates the plugin.

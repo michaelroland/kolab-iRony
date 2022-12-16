@@ -44,12 +44,12 @@ class SchedulePlugin extends CalDAV\Schedule\Plugin
      * href: The principal's email address, as requested
      *
      * @param string $email address
-     * @param \DateTime $start
-     * @param \DateTime $end
+     * @param \DateTimeInterface $start
+     * @param \DateTimeInterface $end
      * @param VObject\Component $request
      * @return array
      */
-    protected function getFreeBusyForEmail($email, \DateTime $start, \DateTime $end, VObject\Component $request)
+    protected function getFreeBusyForEmail($email, \DateTimeInterface $start, \DateTimeInterface $end, VObject\Component $request)
     {
         console(__METHOD__, $email, $start, $end);
 
