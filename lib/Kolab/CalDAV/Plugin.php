@@ -240,7 +240,8 @@ class Plugin extends CalDAV\Plugin
     function propFind(DAV\PropFind $propFind, DAV\INode $node)
     {
         $propFind->handle('{' . self::NS_CALDAV . '}calendar-home-set', function() {
-            return new DAV\Xml\Property\Href($this->getCalendarHomeForPrincipal(HTTPBasic::$current_user) . '/');
+            $user = HTTPBasic::$current_user;
+            return new DAV\Xml\Property\Href($this->getCalendarHomeForPrincipal("/principals/$user") . '/');
         });
 
         parent::propFind($propFind, $node);
