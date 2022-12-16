@@ -171,7 +171,7 @@ class Chwala extends AbstractBackend
 
         // map to Chwala scope/depth values
         $lock['scope'] = $lock['scope'] == LockInfo::SHARED ? file_storage::LOCK_SHARED : file_storage::LOCK_EXCLUSIVE;
-        $lock['depth'] = $lock['depth'] == Server::DEPTH_INFINITY ? file_storage::LOCK_INFINITE : $record['depth'];
+        $lock['depth'] = $lock['depth'] == Server::DEPTH_INFINITY ? file_storage::LOCK_INFINITE : $lock['depth'];
 
         return $lock;
     }
