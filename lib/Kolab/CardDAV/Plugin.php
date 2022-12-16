@@ -210,55 +210,55 @@ class Plugin extends CardDAV\Plugin
      * This report is used by the client to filter an addressbook based on a
      * complex query.
      *
-     * @param \DOMNode $dom
+     * @param \Sabre\CardDAV\Xml\Request\AddressBookQueryReport $report
      * @return void
      */
-    protected function addressbookQueryReport($dom)
+    protected function addressbookQueryReport($report)
     {
-        $node = $this->server->tree->getNodeForPath(($uri = $this->server->getRequestUri()));
+        $uri = $this->server->getRequestUri();
+        $node = $this->server->tree->getNodeForPath($uri);
         console(__METHOD__, $uri);
 
+        // TODO: port to new API if still required.
         // fix some bogus parameters in queries sent by the SOGo connector.
         // issue submitted in http://www.sogo.nu/bugs/view.php?id=2655
-        $xpath = new \DOMXPath($dom);
-        $xpath->registerNameSpace('card', Plugin::NS_CARDDAV);
+        // $xpath = new \DOMXPath($dom);
+        // $xpath->registerNameSpace('card', Plugin::NS_CARDDAV);
 
-        $filters = $xpath->query('/card:addressbook-query/card:filter');
-        if ($filters->length === 1) {
-            $filter = $filters->item(0);
-            $propFilters = $xpath->query('card:prop-filter', $filter);
-            for ($ii=0; $ii < $propFilters->length; $ii++) {
-                $propFilter = $propFilters->item($ii);
-                $name = $propFilter->getAttribute('name');
+        // $filters = $xpath->query('/card:addressbook-query/card:filter');
+        // if ($filters->length === 1) {
+        //     $filter = $filters->item(0);
+        //     $propFilters = $xpath->query('card:prop-filter', $filter);
+        //     for ($ii=0; $ii < $propFilters->length; $ii++) {
+        //         $propFilter = $propFilters->item($ii);
+        //         $name = $propFilter->getAttribute('name');
 
-                // attribute 'mail' => EMAIL
-                if ($name == 'mail') {
-                    $propFilter->setAttribute('name', 'EMAIL');
-                }
+        //         // attribute 'mail' => EMAIL
+        //         if ($name == 'mail') {
+        //             $propFilter->setAttribute('name', 'EMAIL');
+        //         }
 
-                $textMatches = $xpath->query('card:text-match', $propFilter);
-                for ($jj=0; $jj < $textMatches->length; $jj++) {
-                    $textMatch = $textMatches->item($jj);
-                    $collation = $textMatch->getAttribute('collation');
+        //         $textMatches = $xpath->query('card:text-match', $propFilter);
+        //         for ($jj=0; $jj < $textMatches->length; $jj++) {
+        //             $textMatch = $textMatches->item($jj);
+        //             $collation = $textMatch->getAttribute('collation');
 
-                    // 'i;unicasemap' is a non-standard collation
-                    if ($collation == 'i;unicasemap') {
-                        $textMatch->setAttribute('collation', 'i;unicode-casemap');
-                    }
-                }
-            }
-        }
+        //             // 'i;unicasemap' is a non-standard collation
+        //             if ($collation == 'i;unicasemap') {
+        //                 $textMatch->setAttribute('collation', 'i;unicode-casemap');
+        //             }
+        //         }
+        //     }
+        // }
 
         // query on LDAP node: pass along filter query
         if ($node instanceof LDAPDirectory || $node instanceof LDAPResources) {
-            $query = new CardDAV\AddressBookQueryParser($dom);
-            $query->parse();
 
             // set query and ...
-            $node->setAddressbookQuery($query);
+            $node->setAddressbookQuery($report);
         }
 
         // ... proceed with default action
-        parent::addressbookQueryReport($dom);
+        parent::addressbookQueryReport($report);
     }
 }
