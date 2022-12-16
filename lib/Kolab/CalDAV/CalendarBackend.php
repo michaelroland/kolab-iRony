@@ -23,9 +23,7 @@
 
 namespace Kolab\CalDAV;
 
-use \PEAR;
 use \rcube;
-use \rcube_charset;
 use \rcube_message;
 use \kolab_storage;
 use \kolab_storage_config;
@@ -76,8 +74,8 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
                 '{DAV:}displayname' => html_entity_decode($folder->get_name(), ENT_COMPAT, RCUBE_CHARSET),
                 '{http://apple.com/ns/ical/}calendar-color' => '#' . $folder->get_color('FF0000') . 'FF',
                 '{http://calendarserver.org/ns/}getctag' => sprintf('%d-%d-%d', $fdata['UIDVALIDITY'], $fdata['HIGHESTMODSEQ'], $fdata['UIDNEXT']),
-                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Property\SupportedCalendarComponentSet(array(DAVBackend::$caldav_type_component_map[$folder->type])),
-                '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Property\ScheduleCalendarTransp('opaque'),
+                '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set' => new CalDAV\Xml\Property\SupportedCalendarComponentSet(array(DAVBackend::$caldav_type_component_map[$folder->type])),
+                '{urn:ietf:params:xml:ns:caldav}schedule-calendar-transp' => new CalDAV\Xml\Property\ScheduleCalendarTransp('opaque'),
                 '{http://apple.com/ns/ical/}calendar-order' => $order++,
             );
 

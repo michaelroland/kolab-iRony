@@ -33,7 +33,7 @@ use Sabre\CardDAV;
  *
  * The UserAddressBooks collection contains a list of addressbooks associated with a user
  */
-class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IExtendedCollection, DAV\IProperties, DAVACL\IACL
+class UserAddressBooks extends \Sabre\CardDAV\AddressBookHome implements DAV\IExtendedCollection, DAV\IProperties, DAVACL\IACL
 {
     // pseudo-singleton instance
     private $ldap_directory;
@@ -132,7 +132,7 @@ class UserAddressBooks extends \Sabre\CardDAV\UserAddressBooks implements DAV\IE
         foreach ($requestedProperties as $prop) {
             switch($prop) {
                 case '{urn:ietf:params:xml:ns:carddav}supported-address-data':
-                    $response[$prop] = new CardDAV\Property\SupportedAddressData(ContactsBackend::$supported_address_data);
+                    $response[$prop] = new CardDAV\Xml\Property\SupportedAddressData(ContactsBackend::$supported_address_data);
                     break;
             }
         }

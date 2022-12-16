@@ -192,7 +192,7 @@ class File extends Node implements \Sabre\DAV\IFile, \Sabre\DAV\IProperties
         $result = array();
 
         if ($this->data['created']) {
-            $result['{DAV:}creationdate'] = \Sabre\HTTP\Util::toHTTPDate(new DateTime('@'.$this->data['created']));
+            $result['{DAV:}creationdate'] = \Sabre\HTTP\toDate(new DateTime('@'.$this->data['created']));
         }
 
         return $result;

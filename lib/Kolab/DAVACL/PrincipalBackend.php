@@ -30,6 +30,7 @@ use \kolab_storage;
 use Sabre\DAV\Exception;
 use Sabre\DAV\URLUtil;
 use Kolab\DAV\Auth\HTTPBasic;
+use Sabre\Uri;
 
 /**
  * Kolab Principal Backend
@@ -148,7 +149,7 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
     public function getGroupMemberSet($principal)
     {
         // TODO: for now the group principal has only one member, the user itself
-        list($prefix, $name) = URLUtil::splitPath($principal);
+        list($prefix, $name) = Uri\split($principal);
 
         $principal = $this->getPrincipalByPath($principal);
         if (!$principal) throw new Exception('Principal not found');
@@ -166,7 +167,7 @@ class PrincipalBackend extends \Sabre\DAVACL\PrincipalBackend\AbstractBackend im
      */
     public function getGroupMembership($principal)
     {
-        list($prefix,$name) = URLUtil::splitPath($principal);
+        list($prefix, $name) = Uri\split($principal);
 
         $group_membership = array();
         if ($prefix == 'principals') {

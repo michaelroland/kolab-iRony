@@ -27,7 +27,7 @@ use Sabre\DAV;
 use Sabre\CalDAV;
 use Sabre\VObject;
 use Sabre\HTTP;
-use Sabre\HTTP\URLUtil;
+use Sabre\Uri;
 use Kolab\DAV\Auth\HTTPBasic;
 
 
@@ -117,7 +117,7 @@ class Plugin extends CalDAV\Plugin
                 // keep the parsed object in memory for later processing
                 if ($vobj->name == 'VCALENDAR') {
                     self::$parsed_vcalendar = $vobj;
-                    foreach ($vobj->getBaseComponents() ?: $vobj->getComponents() as $vevent) {
+                    foreach ($vobj->getComponents() as $vevent) {
                         if ($vevent->name == 'VEVENT' || $vevent->name == 'VTODO') {
                             self::$parsed_vevent = $vevent;
                             break;
@@ -137,7 +137,7 @@ class Plugin extends CalDAV\Plugin
         $sCCS = '{urn:ietf:params:xml:ns:caldav}supported-calendar-component-set';
 
         // Get the Supported Components for the target calendar
-        list($parentPath) = URLUtil::splitPath($path);
+        list($parentPath) = Uri\split($path);
         $calendarProperties = $this->server->getProperties($parentPath, [$sCCS]);
 
         if (isset($calendarProperties[$sCCS])) {
@@ -240,7 +240,7 @@ class Plugin extends CalDAV\Plugin
     function propFind(DAV\PropFind $propFind, DAV\INode $node)
     {
         $propFind->handle('{' . self::NS_CALDAV . '}calendar-home-set', function() {
-            return new DAV\Property\Href($this->getCalendarHomeForPrincipal(HTTPBasic::$current_user) . '/');
+            return new DAV\Xml\Property\Href($this->getCalendarHomeForPrincipal(HTTPBasic::$current_user) . '/');
         });
 
         parent::propFind($propFind, $node);
