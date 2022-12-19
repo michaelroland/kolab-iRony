@@ -156,7 +156,6 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             if (is_array($host)) {
                 foreach($host as $key => $val) {
                     $host = is_numeric($key) ? $val : $key;
-                    $host->next();
                     break;
                 }
             }
