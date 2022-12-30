@@ -48,7 +48,7 @@ class LDAPDirectory extends DAV\Collection implements \Sabre\CardDAV\IDirectory,
     protected $principalUri;
     protected $addressBookInfo = array();
     protected $cache;
-    protected CardDAV\Xml\Request\AddressBookQueryReport $query;
+    protected $query;
     protected $filter;
 
     /**
