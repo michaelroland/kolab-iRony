@@ -883,7 +883,7 @@ class ContactsBackend extends CardDAV\Backend\AbstractBackend
         $phonetypemap['fax,work'] = 'workfax';
 
         // map attributes to internal fields
-        foreach ($vc->children as $prop) {
+        foreach ($vc->children() as $prop) {
             if (!($prop instanceof VObject\Property))
                 continue;
 
