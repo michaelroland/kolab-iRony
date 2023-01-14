@@ -151,7 +151,10 @@ if (is_object($logger)) {
 
 // register some plugins
 $server->addPlugin(new \Sabre\DAV\Auth\Plugin($auth_backend, 'KolabDAV'));
-$server->addPlugin(new \Sabre\DAVACL\Plugin());
+// Unauthenticated access doesn't work for us since we require credentials to get access to the data in the first place.
+$aclPlugin = new \Sabre\DAVACL\Plugin();
+$aclPlugin->allowUnauthenticatedAccess = false;
+$server->addPlugin($aclPlugin);
 
 if ($services['CALDAV']) {
     $server->addPlugin(new \Kolab\CalDAV\Plugin());
