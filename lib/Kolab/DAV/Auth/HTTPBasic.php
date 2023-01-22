@@ -74,7 +74,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             }
 
             // LDAP server failure... send 503 error
-            if ($auth['kolab_ldap_error']) {
+            if ($auth['kolab_ldap_error'] ?? false) {
                 throw new ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
             }
         }
@@ -85,8 +85,10 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             $_SESSION['kolab_auth_vars'] = $auth['vars'];
         }
 
+        $error = null;
+        $error_str = null;
         // authenticate user against the IMAP server
-        $user_id = $auth['abort'] ? 0 : $this->_login($auth['user'], $auth['pass'], $auth['host'], $error);
+        $user_id = ($auth['abort'] ?? false) ? 0 : $this->_login($auth['user'], $auth['pass'], $auth['host'], $error);
 
         if ($user_id) {
             self::$current_user = $auth['user'];
@@ -181,6 +183,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
 
         // parse $host
         $a_host = parse_url($host);
+        $port = null;
         if ($a_host['host']) {
             $host = $a_host['host'];
             $ssl = (isset($a_host['scheme']) && in_array($a_host['scheme'], array('ssl','imaps','tls'))) ? $a_host['scheme'] : null;
