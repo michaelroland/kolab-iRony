@@ -112,11 +112,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
     public function get_storage_folder($id)
     {
         // resolve alias name
-        if ($this->aliases[$id]) {
+        if (!empty($this->aliases[$id])) {
             $id = $this->aliases[$id];
         }
 
-        if ($this->folders[$id]) {
+        if (!empty($this->folders[$id])) {
             DAVBackend::check_storage_folder($this->folders[$id]);
             return $this->folders[$id];
         }
@@ -180,11 +180,11 @@ class CalendarBackend extends CalDAV\Backend\AbstractBackend implements CalDAV\B
         $id = $calendarUri;
 
         // resolve aliases (calendar by folder name)
-        if ($this->aliases[$calendarUri]) {
+        if (!empty($this->aliases[$calendarUri])) {
             $id = $this->aliases[$calendarUri];
         }
 
-        if ($this->calendars[$id] && empty($this->calendars[$id]['principaluri'])) {
+        if (!empty($this->calendars[$id]) && empty($this->calendars[$id]['principaluri'])) {
             $this->calendars[$id]['principaluri'] = 'principals/' . HTTPBasic::$current_user;
         }
 

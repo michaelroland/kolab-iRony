@@ -74,7 +74,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             }
 
             // LDAP server failure... send 503 error
-            if ($auth['kolab_ldap_error']) {
+            if (!empty($auth['kolab_ldap_error'])) {
                 throw new ServiceUnavailable('The service is temporarily unavailable (LDAP failure)');
             }
         }
@@ -86,7 +86,8 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
         }
 
         // authenticate user against the IMAP server
-        $user_id = $auth['abort'] ? 0 : $this->_login($auth['user'], $auth['pass'], $auth['host'], $error);
+        $error = null;
+        $user_id = !empty($auth['abort']) ? 0 : $this->_login($auth['user'], $auth['pass'], $auth['host'], $error);
 
         if ($user_id) {
             self::$current_user = $auth['user'];
@@ -97,12 +98,12 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             return true;
         }
 
-        if ($error) {
-            $error_str = rcube::get_instance()->get_storage()->get_error_str();
-        }
-
         if (class_exists('kolab_auth')) {
-            \kolab_auth::log_login_error($auth['user'], $error_str ?: $error);
+            if ($error) {
+                $error_str = rcube::get_instance()->get_storage()->get_error_str();
+            }
+
+            \kolab_auth::log_login_error($auth['user'], $error_str ?? null);
         }
 
         // IMAP server failure... send 503 error
@@ -192,7 +193,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
             }
         }
 
-        if (!$port) {
+        if (empty($port)) {
             $port = $default_port;
         }
 
