@@ -145,7 +145,7 @@ $server = new \Sabre\DAV\Server($nodes);
 $server->setBaseUri($base_uri);
 
 // connect logger
-if (is_object($logger)) {
+if (isset($loggeer) && is_object($logger)) {
     $server->addPlugin($logger);
 }
 
