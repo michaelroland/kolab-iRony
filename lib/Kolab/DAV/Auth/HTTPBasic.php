@@ -28,6 +28,8 @@ use \rcube_imap_generic;
 use \rcube_user;
 use \rcube_utils;
 use Sabre\DAV;
+use Sabre\HTTP\RequestInterface;
+use Sabre\HTTP\ResponseInterface;
 
 /**
  *
@@ -125,6 +127,28 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
     {
         // return the canonic user name
         return self::$current_user;
+    }
+
+    /**
+     * When this method is called, the backend must check if authentication was
+     * successful.
+     *
+     * The returned value must be one of the following
+     *
+     * [true, "principals/username"]
+     * [false, "reason for failure"]
+     *
+     * @return array
+     */
+     public function check(Sabre\HTTP\RequestInterface $request, Sabre\HTTP\ResponseInterface $response)
+    {
+        $result = parent::check($request, $response);
+    
+        if ($result[0]) {
+            $result[1] = $this->principalPrefix . $this->getCurrentUser();
+        }
+    
+        return $result;
     }
 
     /**
