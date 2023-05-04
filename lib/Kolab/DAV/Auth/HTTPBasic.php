@@ -140,7 +140,7 @@ class HTTPBasic extends DAV\Auth\Backend\AbstractBasic
      *
      * @return array
      */
-     public function check(Sabre\HTTP\RequestInterface $request, Sabre\HTTP\ResponseInterface $response)
+    public function check(RequestInterface $request, ResponseInterface $response)
     {
         $result = parent::check($request, $response);
     
